@@ -1,0 +1,394 @@
+from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+from typing import List, Optional
+from app.models.models import Course, Enrollment, JoinRequest, AttendanceSession, AttendanceRecord, User
+from datetime import datetime
+import uuid
+
+
+class CourseRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_course(self, title: str, code: str, teacher_id: int, department: Optional[str] = None, session_target: Optional[str] = None) -> Course:
+        join_token = uuid.uuid4().hex
+        course = Course(
+            title=title,
+            code=code,
+            department=department,
+            session_target=session_target,
+            join_token=join_token,
+            teacher_id=teacher_id,
+        )
+        self.db.add(course)
+        self.db.commit()
+        self.db.refresh(course)
+        return course
+
+    def create_session(self, course_id: int, created_by_teacher_id: int) -> AttendanceSession:
+        session = AttendanceSession(
+            course_id=course_id,
+            created_by_teacher_id=created_by_teacher_id,
+        )
+        self.db.add(session)
+        self.db.commit()
+        self.db.refresh(session)
+        return session
+
+    def search_courses(self, title: Optional[str] = None, session_target: Optional[str] = None) -> List[Course]:
+        stmt = select(Course)
+        if title:
+            stmt = stmt.where(Course.title.ilike(f"%{title}%"))
+        if session_target:
+            stmt = stmt.where(Course.session_target == session_target)
+        result = self.db.execute(stmt).scalars().all()
+        return result
+
+    def list_courses_by_teacher(self, teacher_id: int) -> List[Course]:
+        stmt = select(Course).where(Course.teacher_id == teacher_id)
+        return self.db.execute(stmt).scalars().all()
+
+    def list_enrollments_by_student(self, student_id: int) -> List[Course]:
+        # return Course objects the student is enrolled in
+        stmt = select(Course).join(Enrollment, Enrollment.course_id == Course.id).where(Enrollment.student_id == student_id)
+        return self.db.execute(stmt).scalars().all()
+
+    def create_join_request(self, student_id: int, course_id: int) -> JoinRequest:
+        # avoid duplicate pending requests
+        existing = self.db.query(JoinRequest).filter(
+            JoinRequest.student_id == student_id,
+            JoinRequest.course_id == course_id,
+            JoinRequest.status == "pending",
+        ).first()
+        if existing:
+            return existing
+
+        jr = JoinRequest(student_id=student_id, course_id=course_id)
+        self.db.add(jr)
+        self.db.commit()
+        self.db.refresh(jr)
+        return jr
+
+    def list_join_requests_for_teacher(self, teacher_id: int) -> List[JoinRequest]:
+        stmt = (
+            select(
+                JoinRequest.id,
+                JoinRequest.student_id,
+                JoinRequest.course_id,
+                JoinRequest.status,
+                JoinRequest.created_at,
+                JoinRequest.decided_by,
+                JoinRequest.decided_at,
+                User.full_name.label("student_name"),
+                User.session_year.label("session_year"),
+                Course.title.label("course_title"),
+                Course.session_target.label("course_session"),
+            )
+            .join(Course, Course.id == JoinRequest.course_id)
+            .join(User, User.id == JoinRequest.student_id)
+            .where(Course.teacher_id == teacher_id, JoinRequest.status == "pending")
+            .order_by(JoinRequest.created_at.desc())
+        )
+        return [row._asdict() for row in self.db.execute(stmt).all()]
+
+    def decide_join_request(self, request_id: int, accept: bool, decided_by: int):
+        jr = self.db.query(JoinRequest).filter(JoinRequest.id == request_id).first()
+        if not jr:
+            return None
+        jr.status = "accepted" if accept else "rejected"
+        jr.decided_by = decided_by
+        jr.decided_at = datetime.utcnow()
+        self.db.commit()
+        # if accepted, create enrollment
+        if accept:
+            # avoid duplicate enrollment
+            existing_en = self.db.query(Enrollment).filter(Enrollment.student_id == jr.student_id, Enrollment.course_id == jr.course_id).first()
+            if not existing_en:
+                en = Enrollment(student_id=jr.student_id, course_id=jr.course_id)
+                self.db.add(en)
+                self.db.commit()
+        return jr
+
+    def get_course_overview(self, course_id: int):
+        course = self.db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            return None
+
+        sessions = (
+            self.db.query(AttendanceSession)
+            .filter(AttendanceSession.course_id == course_id)
+            .order_by(AttendanceSession.date.desc())
+            .all()
+        )
+        total_sessions = len(sessions)
+        # Number sessions per-course (oldest = 1). Listed newest-first, so the
+        # first item is session #total_sessions.
+        session_summaries = [
+            {
+                "id": s.id,
+                "session_number": total_sessions - i,
+                "date": s.date,
+                "status": s.status,
+            }
+            for i, s in enumerate(sessions)
+        ]
+
+        enrolled_students = (
+            self.db.query(User)
+            .join(Enrollment, Enrollment.student_id == User.id)
+            .filter(Enrollment.course_id == course_id)
+            .order_by(User.full_name.asc())
+            .all()
+        )
+
+        student_rows = []
+        for student in enrolled_students:
+            present_count = (
+                self.db.query(func.count(AttendanceRecord.id))
+                .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+                .filter(
+                    AttendanceSession.course_id == course_id,
+                    AttendanceRecord.student_id == student.id,
+                    AttendanceRecord.is_present.is_(True),
+                )
+                .scalar()
+                or 0
+            )
+            absent_count = (
+                self.db.query(func.count(AttendanceRecord.id))
+                .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+                .filter(
+                    AttendanceSession.course_id == course_id,
+                    AttendanceRecord.student_id == student.id,
+                    AttendanceRecord.is_present.is_(False),
+                )
+                .scalar()
+                or 0
+            )
+            attendance_score = round((present_count / total_sessions * 100.0), 2) if total_sessions > 0 else 0.0
+            student_rows.append(
+                {
+                    "student_id": student.id,
+                    "user_id": student.id,
+                    "full_name": student.full_name,
+                    "email": student.email,
+                    "attendance_score": attendance_score,
+                    "present_count": present_count,
+                    "absent_count": absent_count,
+                    "total_sessions": total_sessions,
+                }
+            )
+
+        return {
+            "course": course,
+            "total_students": len(enrolled_students),
+            "total_sessions": total_sessions,
+            "students": student_rows,
+            "sessions": session_summaries,
+        }
+
+    def get_student_course_attendance(self, course_id: int, student_id: int):
+        """
+        Per-session attendance detail for ONE student in ONE course, plus a
+        summary. Score = present sessions ÷ this course's total sessions, matching
+        the teacher overview. A session with no record counts as absent for the
+        score but is flagged (has_record=False) so the UI can distinguish
+        "never detected" from an explicit absent mark.
+        """
+        course = self.db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            return None
+
+        sessions = (
+            self.db.query(AttendanceSession)
+            .filter(AttendanceSession.course_id == course_id)
+            .order_by(AttendanceSession.date.desc())
+            .all()
+        )
+        total_sessions = len(sessions)
+
+        records_by_session = {
+            r.session_id: r
+            for r in (
+                self.db.query(AttendanceRecord)
+                .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+                .filter(
+                    AttendanceSession.course_id == course_id,
+                    AttendanceRecord.student_id == student_id,
+                )
+                .all()
+            )
+        }
+
+        present_count = 0
+        absent_count = 0
+        session_rows = []
+        for i, s in enumerate(sessions):
+            record = records_by_session.get(s.id)
+            is_present = bool(record.is_present) if record else False
+            if record is not None:
+                if record.is_present:
+                    present_count += 1
+                else:
+                    absent_count += 1
+            session_rows.append(
+                {
+                    "session_id": s.id,
+                    "session_number": total_sessions - i,
+                    "date": s.date,
+                    "session_status": s.status,
+                    "is_present": is_present,
+                    "confidence": record.confidence if record else None,
+                    "reviewed_manually": bool(record.reviewed_manually) if record else False,
+                    "has_record": record is not None,
+                }
+            )
+
+        attendance_score = round((present_count / total_sessions * 100.0), 2) if total_sessions > 0 else 0.0
+
+        return {
+            "course": course,
+            "total_sessions": total_sessions,
+            "present_count": present_count,
+            "absent_count": absent_count,
+            "attendance_score": attendance_score,
+            "sessions": session_rows,
+        }
+
+    def get_course_attendance_matrix(self, course_id: int):
+        """
+        Full attendance grid for a course, for report/PDF export. Sessions are
+        listed oldest-first (so date columns read chronologically). Each student
+        row carries a present/absent flag per session plus totals. A session with
+        no record for a student counts as absent, so present + absent == total.
+        """
+        course = self.db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            return None
+
+        sessions = (
+            self.db.query(AttendanceSession)
+            .filter(AttendanceSession.course_id == course_id)
+            .order_by(AttendanceSession.date.asc(), AttendanceSession.id.asc())
+            .all()
+        )
+        total_sessions = len(sessions)
+        session_meta = [
+            {"id": s.id, "session_number": i + 1, "date": s.date}
+            for i, s in enumerate(sessions)
+        ]
+
+        # (student_id, session_id) -> is_present
+        present_map = {}
+        for student_id, session_id, is_present in (
+            self.db.query(
+                AttendanceRecord.student_id,
+                AttendanceRecord.session_id,
+                AttendanceRecord.is_present,
+            )
+            .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+            .filter(AttendanceSession.course_id == course_id)
+            .all()
+        ):
+            present_map[(student_id, session_id)] = bool(is_present)
+
+        students = (
+            self.db.query(User)
+            .join(Enrollment, Enrollment.student_id == User.id)
+            .filter(Enrollment.course_id == course_id)
+            .order_by(User.full_name.asc())
+            .all()
+        )
+
+        student_rows = []
+        for student in students:
+            attendance = [
+                bool(present_map.get((student.id, s.id), False)) for s in sessions
+            ]
+            present_count = sum(1 for p in attendance if p)
+            absent_count = total_sessions - present_count
+            percentage = round((present_count / total_sessions * 100.0), 2) if total_sessions > 0 else 0.0
+            student_rows.append(
+                {
+                    "full_name": student.full_name,
+                    "student_id": student.student_id or "—",
+                    "attendance": attendance,
+                    "present_count": present_count,
+                    "absent_count": absent_count,
+                    "percentage": percentage,
+                }
+            )
+
+        return {
+            "course": course,
+            "total_sessions": total_sessions,
+            "sessions": session_meta,
+            "students": student_rows,
+        }
+
+    def search_students(self, name: Optional[str] = None, session_year: Optional[str] = None) -> List[User]:
+        stmt = select(User).where(User.role == "student")
+        if name:
+            stmt = stmt.where(User.full_name.ilike(f"%{name}%"))
+        if session_year:
+            stmt = stmt.where(User.session_year == session_year)
+        return self.db.execute(stmt).scalars().all()
+
+    def reset_course_attendance(self, course_id: int) -> int:
+        """
+        Wipe all attendance for a course: delete every attendance session (which
+        cascades to its records), giving a clean slate. Returns sessions removed.
+        """
+        sessions = (
+            self.db.query(AttendanceSession)
+            .filter(AttendanceSession.course_id == course_id)
+            .all()
+        )
+        count = len(sessions)
+        for session in sessions:
+            self.db.delete(session)  # cascade removes AttendanceRecord rows
+        self.db.commit()
+        return count
+
+    def remove_student_from_course(self, course_id: int, student_id: int) -> int:
+        """
+        Unenroll a student from a course and delete all of their attendance
+        records within it. Other students and the sessions themselves are left
+        intact. Returns the number of attendance records removed.
+        """
+        session_ids = [
+            sid
+            for (sid,) in self.db.query(AttendanceSession.id)
+            .filter(AttendanceSession.course_id == course_id)
+            .all()
+        ]
+        deleted = 0
+        if session_ids:
+            deleted = (
+                self.db.query(AttendanceRecord)
+                .filter(
+                    AttendanceRecord.student_id == student_id,
+                    AttendanceRecord.session_id.in_(session_ids),
+                )
+                .delete(synchronize_session=False)
+            )
+        self.db.query(Enrollment).filter(
+            Enrollment.course_id == course_id,
+            Enrollment.student_id == student_id,
+        ).delete(synchronize_session=False)
+        self.db.commit()
+        return deleted
+
+    def add_student_to_course(self, course_id: int, student_id: int):
+        existing = self.db.query(Enrollment).filter(
+            Enrollment.course_id == course_id,
+            Enrollment.student_id == student_id,
+        ).first()
+        if existing:
+            return existing
+
+        enrollment = Enrollment(course_id=course_id, student_id=student_id)
+        self.db.add(enrollment)
+        self.db.commit()
+        self.db.refresh(enrollment)
+        return enrollment

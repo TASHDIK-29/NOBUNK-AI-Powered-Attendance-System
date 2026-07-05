@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — a single source of truth for the whole app.
+ * Semantic names (surface / border / primary / muted-foreground …) so components
+ * never hardcode raw colors and light ⇄ dark stays consistent everywhere.
+ */
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-elevated: 0 12px 40px rgba(15, 23, 42, 0.12);
+}
+
+/* ---- Light theme (default) ------------------------------------------------ */
+:root {
+  --background: 250 250 252;      /* app canvas */
+  --surface: 255 255 255;         /* cards, panels */
+  --surface-muted: 244 245 248;   /* subtle fills, inputs bg */
+  --foreground: 15 23 42;         /* primary text (slate-900) */
+  --muted-foreground: 100 116 139;/* secondary text (slate-500) */
+  --border: 226 232 240;          /* hairlines (slate-200) */
+  --input: 226 232 240;
+
+  --primary: 79 70 229;           /* indigo-600 */
+  --primary-hover: 67 56 202;     /* indigo-700 */
+  --primary-foreground: 255 255 255;
+  --ring: 99 102 241;             /* indigo-500 */
+
+  --success: 5 150 105;           /* emerald-600 */
+  --success-soft: 236 253 245;
+  --danger: 225 29 72;            /* rose-600 */
+  --danger-soft: 255 241 242;
+  --warning: 217 119 6;           /* amber-600 */
+  --warning-soft: 255 251 235;
+
+  color-scheme: light;
+}
+
+/* ---- Dark theme ----------------------------------------------------------- */
+.dark {
+  --background: 9 9 17;
+  --surface: 20 21 33;
+  --surface-muted: 30 31 46;
+  --foreground: 237 238 245;
+  --muted-foreground: 148 156 176;
+  --border: 41 43 61;
+  --input: 51 53 74;
+
+  --primary: 129 122 255;
+  --primary-hover: 149 143 255;
+  --primary-foreground: 12 12 20;
+  --ring: 129 122 255;
+
+  --success: 52 211 153;
+  --success-soft: 6 40 33;
+  --danger: 251 113 133;
+  --danger-soft: 46 16 24;
+  --warning: 251 191 36;
+  --warning-soft: 43 32 11;
+
+  color-scheme: dark;
+}
+
+/* Map tokens into Tailwind's color system so `bg-surface`, `text-foreground`,
+ * `border-border`, `bg-primary/10`, etc. all work with opacity modifiers. */
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-surface: rgb(var(--surface));
+  --color-surface-muted: rgb(var(--surface-muted));
+  --color-foreground: rgb(var(--foreground));
+  --color-muted-foreground: rgb(var(--muted-foreground));
+  --color-border: rgb(var(--border));
+  --color-input: rgb(var(--input));
+
+  --color-primary: rgb(var(--primary));
+  --color-primary-hover: rgb(var(--primary-hover));
+  --color-primary-foreground: rgb(var(--primary-foreground));
+  --color-ring: rgb(var(--ring));
+
+  --color-success: rgb(var(--success));
+  --color-success-soft: rgb(var(--success-soft));
+  --color-danger: rgb(var(--danger));
+  --color-danger-soft: rgb(var(--danger-soft));
+  --color-warning: rgb(var(--warning));
+  --color-warning-soft: rgb(var(--warning-soft));
+}
+
+@layer base {
+  * {
+    border-color: rgb(var(--border));
+  }
+
+  body {
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Consistent, themable focus ring for keyboard users. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--ring));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: rgb(var(--primary) / 0.2);
+  }
+}
+
+@layer utilities {
+  /* Reusable entrance animation for cards / lists. */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out both;
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
+
+/* Themed scrollbar so dark mode doesn't show bright track. */
+* {
+  scrollbar-color: rgb(var(--border)) transparent;
+}

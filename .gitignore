@@ -1,0 +1,113 @@
+# ============================================================
+#  Secrets & environment  — NEVER commit these
+# ============================================================
+.env
+.env.*
+*.env
+!.env.example
+!*.env.example
+backend/.env
+frontend/.env*
+*.pem
+*.key
+secrets.*
+
+# ============================================================
+#  User uploads & generated media (contains face-image PII)
+# ============================================================
+backend/uploads/
+uploads/
+
+# ============================================================
+#  Python (backend)
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+
+# Packaging / build
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+
+# Test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local databases
+*.sqlite3
+*.db
+
+# ============================================================
+#  Node / Next.js (frontend)
+# ============================================================
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js build output
+.next/
+out/
+build/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Deploy
+.vercel
+
+# ============================================================
+#  Logs
+# ============================================================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ============================================================
+#  OS files
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ============================================================
+#  Editors / IDEs
+# ============================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ============================================================
+#  Claude Code — ignore personal/local config, keep shared
+# ============================================================
+.claude/settings.local.json
+PROJECT_CONTEXT.txt

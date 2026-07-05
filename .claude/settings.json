@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/api/v1/attendance.py'\\).read\\(\\)\\); print\\('backend syntax OK'\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(python -c \"import reportlab; print\\('reportlab', reportlab.Version\\)\")",
+      "Bash(python -c \"import PIL; print\\('Pillow', PIL.__version__\\)\")",
+      "Bash(./venv/Scripts/python.exe -m pip install reportlab)",
+      "Bash(./venv/Scripts/python.exe -c ' *)",
+      "Bash(git add *)",
+      "Bash(grep -iE \"venv/|node_modules/|/uploads/|\\\\.env$\")",
+      "Bash(rm -rf frontend/.git)",
+      "Bash(grep -iE \"venv/|node_modules/|/uploads/|\\\\.env$|settings.local\")"
+    ]
+  }
+}
