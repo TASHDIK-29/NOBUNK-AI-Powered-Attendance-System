@@ -95,6 +95,27 @@ class AttendanceRecord(Base):
     student = relationship("User")
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # Recipient of the notification.
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    # Category, e.g. "join_request", "join_accepted", "join_rejected",
+    # "attendance_marked", "low_attendance".
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(String, nullable=False)
+    # Frontend route to open when the notification is clicked (optional).
+    link = Column(String, nullable=True)
+    # Related course, if any — lets us clean up notifications when a course goes.
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=True)
+    is_read = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])
+
+
 class JoinRequest(Base):
     __tablename__ = "join_requests"
 

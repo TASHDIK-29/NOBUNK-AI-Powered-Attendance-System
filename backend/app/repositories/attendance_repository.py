@@ -1,49 +1,34 @@
 import numpy as np
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.models.models import StudentEmbedding, Enrollment, AttendanceRecord, User
-from typing import List, Tuple
+from typing import Dict, List
 
 class AttendanceRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def find_matching_students_in_course(self, target_embedding: List[float], course_id: int, threshold: float = 0.6) -> Tuple[int, float]:
+    def get_enrolled_student_distances(self, target_embedding: List[float], course_id: int) -> Dict[int, float]:
         """
-        Perform a pgvector similarity search using L2 distance (cosine distance is also possible, 
-        setup depends on embedding geometry, DeepFace ArcFace uses Cosine or L2).
-        ArcFace embeddings are usually compared using Cosine similarity.
-        We will use `.cosine_distance()`.
-        
-        Searches ONLY within students enrolled in the given course_id.
-        Returns (student_id, distance) of the best match, or (None, None) if below threshold.
+        Cosine distance from one detected face to every enrolled student in the
+        course, taking each student's BEST (minimum) distance across all of their
+        reference embeddings.
+
+        Returns {student_id: distance} for every enrolled student that has at
+        least one embedding. Lower distance = more similar (0 = identical). The
+        caller uses these to build a face x student cost matrix for one-to-one
+        assignment and to apply the runner-up margin (ambiguity) test — so we
+        return the full ranking here rather than a single top-1 guess.
         """
-        # Convert to numpy array just in case, pgvector handles arrays well
         emb_array = np.array(target_embedding)
-        
-        # Subquery or join: Only search embeddings of students in this course
-        # cosine_distance: lower is more similar (0 = identical, 2 = opposite)
-        # DeepFace ArcFace default cosine threshold is around 0.68.
-        
+        distance = func.min(StudentEmbedding.embedding.cosine_distance(emb_array)).label("distance")
         stmt = (
-            select(
-                StudentEmbedding.student_id, 
-                StudentEmbedding.embedding.cosine_distance(emb_array).label("distance")
-            )
+            select(StudentEmbedding.student_id, distance)
             .join(Enrollment, Enrollment.student_id == StudentEmbedding.student_id)
             .where(Enrollment.course_id == course_id)
-            .order_by("distance")
-            .limit(1)
+            .group_by(StudentEmbedding.student_id)
         )
-        
-        result = self.db.execute(stmt).first()
-        if result:
-            student_id, distance = result
-            # distance: smaller is better. distance < threshold implies a match
-            if distance < threshold:
-                return student_id, distance
-        
-        return None, None
+        return {row.student_id: float(row.distance) for row in self.db.execute(stmt).all()}
 
     def mark_attendance(self, session_id: int, student_id: int, distance: float, is_present: bool = True):
         """

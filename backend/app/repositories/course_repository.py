@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from typing import List, Optional
 from app.models.models import Course, Enrollment, JoinRequest, AttendanceSession, AttendanceRecord, User
+from app.repositories.notification_repository import NotificationRepository
 from sqlalchemy import delete as sa_delete
 from datetime import datetime
 import uuid
@@ -68,6 +69,20 @@ class CourseRepository:
         self.db.add(jr)
         self.db.commit()
         self.db.refresh(jr)
+
+        # Notify the course's teacher that a student wants to join.
+        course = self.db.query(Course).filter(Course.id == course_id).first()
+        student = self.db.query(User).filter(User.id == student_id).first()
+        if course and course.teacher_id:
+            student_name = (student.full_name if student else None) or "A student"
+            NotificationRepository(self.db).create(
+                user_id=course.teacher_id,
+                type="join_request",
+                title="New join request",
+                message=f"{student_name} requested to join {course.title}.",
+                link="/teacher/join-requests",
+                course_id=course_id,
+            )
         return jr
 
     def list_join_requests_for_teacher(self, teacher_id: int) -> List[JoinRequest]:
@@ -108,6 +123,28 @@ class CourseRepository:
                 en = Enrollment(student_id=jr.student_id, course_id=jr.course_id)
                 self.db.add(en)
                 self.db.commit()
+
+        # Notify the student of the teacher's decision.
+        course = self.db.query(Course).filter(Course.id == jr.course_id).first()
+        course_title = course.title if course else "the course"
+        if accept:
+            NotificationRepository(self.db).create(
+                user_id=jr.student_id,
+                type="join_accepted",
+                title="Join request accepted",
+                message=f"You have been enrolled in {course_title}.",
+                link=f"/student/courses/{jr.course_id}",
+                course_id=jr.course_id,
+            )
+        else:
+            NotificationRepository(self.db).create(
+                user_id=jr.student_id,
+                type="join_rejected",
+                title="Join request declined",
+                message=f"Your request to join {course_title} was declined.",
+                link="/student/courses",
+                course_id=jr.course_id,
+            )
         return jr
 
     def get_course_overview(self, course_id: int):

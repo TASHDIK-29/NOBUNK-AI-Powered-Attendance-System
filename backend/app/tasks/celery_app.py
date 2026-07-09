@@ -19,4 +19,6 @@ celery_app.conf.update(
 )
 
 # Autodiscover tasks in our app
-celery_app.autodiscover_tasks(["app.tasks.attendance_tasks"])
+celery_app.autodiscover_tasks(
+    ["app.tasks.attendance_tasks", "app.services.notification_service"]
+)

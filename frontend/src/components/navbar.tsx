@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logout } from '@/store/slices/authSlice';
 import { Avatar, Button, ButtonLink } from '@/components/ui';
 import { ThemeToggle } from '@/components/theme-toggle';
+import NotificationBell from '@/components/notification-bell';
 import { cn } from '@/lib/cn';
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
@@ -89,6 +90,7 @@ export default function Navbar() {
 
         {/* Right cluster */}
         <div className="flex items-center gap-2">
+          {auth.isAuthenticated ? <NotificationBell /> : null}
           <ThemeToggle />
 
           {auth.isAuthenticated ? (
