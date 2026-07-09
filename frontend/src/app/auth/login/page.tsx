@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { Alert, Button, Field, Input, type StatusState } from "@/components/ui";
+import { Button, Field, Input, useToast } from "@/components/ui";
 import { AuthLayout } from "@/components/auth-layout";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/store/slices/authSlice";
@@ -14,14 +14,13 @@ import { setCredentials } from "@/store/slices/authSlice";
 export default function LoginPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<StatusState>(null);
   const [form, setForm] = useState({ email: "", password: "" });
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setStatus(null);
 
     try {
       const formData = new URLSearchParams();
@@ -40,7 +39,7 @@ export default function LoginPage() {
       dispatch(setCredentials({ user: userResponse.data, token }));
       router.replace("/dashboard");
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -49,8 +48,6 @@ export default function LoginPage() {
   return (
     <AuthLayout title="Welcome back" subtitle="Take attendance in seconds — welcome back">
       <form className="space-y-5" onSubmit={submit}>
-        <Alert status={status} />
-
         <Field label="Email address" htmlFor="email">
           <Input
             id="email"

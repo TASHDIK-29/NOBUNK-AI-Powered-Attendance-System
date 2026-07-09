@@ -16,7 +16,6 @@ import {
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
-  Alert,
   Avatar,
   Badge,
   Button,
@@ -31,7 +30,8 @@ import {
   Select,
   Skeleton,
   Stat,
-  type StatusState,
+  useConfirm,
+  useToast,
 } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
@@ -94,13 +94,14 @@ function todayLocalISO() {
 export default function TeacherCourseDetailPage() {
   const params = useParams<{ courseId: string }>();
   const courseId = Number(params.courseId);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [overview, setOverview] = useState<CourseOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
   const [sessionDate, setSessionDate] = useState(todayLocalISO());
-  const [status, setStatus] = useState<StatusState>(null);
   const [pollingSessionId, setPollingSessionId] = useState<number | null>(null);
 
   // Roster search + reset
@@ -137,12 +138,12 @@ export default function TeacherCourseDetailPage() {
       try {
         await refreshOverview();
       } catch (error) {
-        setStatus({ kind: "error", message: getErrorMessage(error) });
+        toast.error(getErrorMessage(error));
       } finally {
         setLoading(false);
       }
     })();
-  }, [courseId, refreshOverview]);
+  }, [courseId, refreshOverview, toast]);
 
   useEffect(() => {
     if (!pollingSessionId) {
@@ -156,39 +157,36 @@ export default function TeacherCourseDetailPage() {
         if (sessionStatus && sessionStatus !== "processing") {
           clearInterval(interval);
           setPollingSessionId(null);
-          setStatus({
-            kind: "success",
-            message:
-              sessionStatus === "review_needed"
-                ? "Attendance is ready — a few students may need a quick check below."
-                : "Attendance is ready. Scores have been updated.",
-          });
+          toast.success(
+            sessionStatus === "review_needed"
+              ? "Attendance is ready — a few students may need a quick check below."
+              : "Attendance is ready. Scores have been updated."
+          );
 
           await refreshOverview();
         }
       } catch (error) {
         clearInterval(interval);
         setPollingSessionId(null);
-        setStatus({ kind: "error", message: getErrorMessage(error) });
+        toast.error(getErrorMessage(error));
       }
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [pollingSessionId, refreshOverview]);
+  }, [pollingSessionId, refreshOverview, toast]);
 
   const submitImages = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!sessionDate) {
-      setStatus({ kind: "error", message: "Choose the attendance date." });
+      toast.error("Choose the attendance date.");
       return;
     }
     if (!files || files.length === 0) {
-      setStatus({ kind: "error", message: "Choose at least one classroom image." });
+      toast.error("Choose at least one classroom image.");
       return;
     }
 
     setUploading(true);
-    setStatus(null);
 
     try {
       const formData = new FormData();
@@ -200,15 +198,12 @@ export default function TeacherCourseDetailPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setStatus({
-        kind: "info",
-        message: "Marking attendance now — scores will update automatically when it's done.",
-      });
+      toast.info("Marking attendance now — scores will update automatically when it's done.");
       setPollingSessionId(res.data.id);
       setSessionDate(todayLocalISO());
       setFiles(null);
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setUploading(false);
     }
@@ -224,7 +219,7 @@ export default function TeacherCourseDetailPage() {
       const res = await axios.get(`/api/v1/teacher/students/search?${query.toString()}`);
       setStudentResults(res.data || []);
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setSearching(false);
     }
@@ -234,58 +229,58 @@ export default function TeacherCourseDetailPage() {
     setAddingStudentId(studentId);
     try {
       await axios.post(`/api/v1/teacher/courses/${courseId}/students/${studentId}`);
-      setStatus({ kind: "success", message: "Student added to course." });
+      toast.success("Student added to course.");
       await refreshOverview();
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setAddingStudentId(null);
     }
   };
 
   const removeStudentFromCourse = async (studentId: number, studentName: string) => {
-    if (
-      !window.confirm(
-        `Remove ${studentName} from this course? They will be unenrolled and all of their attendance records here will be deleted. This cannot be undone.`
-      )
-    ) {
+    const ok = await confirm({
+      title: "Remove student",
+      message: `Remove ${studentName} from this course? They will be unenrolled and all of their attendance records here will be deleted. This cannot be undone.`,
+      confirmLabel: "Remove student",
+      tone: "danger",
+    });
+    if (!ok) {
       return;
     }
     setRemovingStudentId(studentId);
-    setStatus(null);
     try {
       const res = await axios.delete(
         `/api/v1/teacher/courses/${courseId}/students/${studentId}`
       );
-      setStatus({
-        kind: "success",
-        message: res.data?.message ?? `${studentName} was removed from the course.`,
-      });
+      toast.success(res.data?.message ?? `${studentName} was removed from the course.`);
       await refreshOverview();
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setRemovingStudentId(null);
     }
   };
 
   const resetCourseAttendance = async () => {
-    if (
-      !window.confirm(
-        "Reset the ENTIRE attendance record for this course? All sessions and their records will be permanently deleted."
-      )
-    ) {
+    const ok = await confirm({
+      title: "Reset all attendance",
+      message:
+        "Reset the entire attendance record for this course? All sessions and their records will be permanently deleted.",
+      confirmLabel: "Reset all",
+      tone: "danger",
+    });
+    if (!ok) {
       return;
     }
     setResettingCourse(true);
-    setStatus(null);
     try {
       const res = await axios.delete(`/api/v1/teacher/courses/${courseId}/attendance`);
-      setStatus({ kind: "success", message: res.data?.message ?? "Course attendance reset." });
+      toast.success(res.data?.message ?? "Course attendance reset.");
       setPollingSessionId(null);
       await refreshOverview();
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setResettingCourse(false);
     }
@@ -293,7 +288,6 @@ export default function TeacherCourseDetailPage() {
 
   const downloadAttendancePdf = async () => {
     setDownloadingPdf(true);
-    setStatus(null);
     try {
       // Use fetch (not axios) for the binary download: axios' XHR adapter reads
       // responseText internally, which throws when responseType is "blob".
@@ -319,10 +313,7 @@ export default function TeacherCourseDetailPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      setStatus({
-        kind: "error",
-        message: "Couldn't generate the attendance PDF. Please try again.",
-      });
+      toast.error("Couldn't generate the attendance PDF. Please try again.");
     } finally {
       setDownloadingPdf(false);
     }
@@ -332,13 +323,12 @@ export default function TeacherCourseDetailPage() {
     setManualStudent(student);
     setManualSessionId(overview?.sessions?.[0] ? String(overview.sessions[0].id) : "");
     setManualPresent(true);
-    setStatus(null);
   };
 
   const submitManualAttendance = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!manualStudent || !manualSessionId) {
-      setStatus({ kind: "error", message: "Choose a session to update." });
+      toast.error("Choose a session to update.");
       return;
     }
     setSavingManual(true);
@@ -348,14 +338,13 @@ export default function TeacherCourseDetailPage() {
       });
       const sessionNo =
         overview?.sessions.find((s) => String(s.id) === manualSessionId)?.session_number ?? "?";
-      setStatus({
-        kind: "success",
-        message: `Marked ${manualStudent.full_name} ${manualPresent ? "present" : "absent"} for session ${sessionNo}.`,
-      });
+      toast.success(
+        `Marked ${manualStudent.full_name} ${manualPresent ? "present" : "absent"} for session ${sessionNo}.`
+      );
       setManualStudent(null);
       await refreshOverview();
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setSavingManual(false);
     }
@@ -418,9 +407,6 @@ export default function TeacherCourseDetailPage() {
             {!downloadingPdf && <FileDown className="h-4 w-4" />}
             Download PDF
           </Button>
-          <ButtonLink href="/teacher/courses" variant="secondary">
-            Back to courses
-          </ButtonLink>
           <ButtonLink href="/teacher/join-requests" variant="secondary">
             Join requests
           </ButtonLink>
@@ -428,8 +414,6 @@ export default function TeacherCourseDetailPage() {
       }
     >
       <div className="space-y-6">
-        <Alert status={status} />
-
         {/* Upload */}
         <Panel
           title="Take attendance"

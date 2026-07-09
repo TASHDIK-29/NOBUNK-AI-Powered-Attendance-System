@@ -5,7 +5,6 @@ import { ScanFace, Upload } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
-  Alert,
   Button,
   ButtonLink,
   Field,
@@ -13,7 +12,7 @@ import {
   Panel,
   PageShell,
   Select,
-  type StatusState,
+  useToast,
 } from "@/components/ui";
 
 const PROFILE_TYPES = [
@@ -27,8 +26,8 @@ const PROFILE_TYPES = [
 type SkippedFile = { filename: string; reason: string };
 
 export default function StudentReferencePage() {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<StatusState>(null);
   const [files, setFiles] = useState<FileList | null>(null);
   const [profileType, setProfileType] = useState("default");
   const [skipped, setSkipped] = useState<SkippedFile[]>([]);
@@ -36,12 +35,11 @@ export default function StudentReferencePage() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!files || files.length === 0) {
-      setStatus({ kind: "error", message: "Please choose one or more clear photos of yourself." });
+      toast.error("Please choose one or more clear photos of yourself.");
       return;
     }
 
     setLoading(true);
-    setStatus(null);
     setSkipped([]);
 
     try {
@@ -57,17 +55,19 @@ export default function StudentReferencePage() {
       const skippedFiles: SkippedFile[] = response.data.skipped_files ?? [];
       setSkipped(skippedFiles);
 
-      setStatus({
-        kind: skippedFiles.length > 0 ? "info" : "success",
-        message:
-          `Saved ${savedCount} photo${savedCount === 1 ? "" : "s"}.` +
-          (skippedFiles.length > 0
-            ? ` ${skippedFiles.length} couldn't be used — see below.`
-            : " You're all set to be recognized in class."),
-      });
+      const message =
+        `Saved ${savedCount} photo${savedCount === 1 ? "" : "s"}.` +
+        (skippedFiles.length > 0
+          ? ` ${skippedFiles.length} couldn't be used — see below.`
+          : " You're all set to be recognized in class.");
+      if (skippedFiles.length > 0) {
+        toast.info(message);
+      } else {
+        toast.success(message);
+      }
       setFiles(null);
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -93,8 +93,6 @@ export default function StudentReferencePage() {
           icon={<ScanFace className="h-5 w-5" />}
         >
           <form className="space-y-5" onSubmit={submit}>
-            <Alert status={status} />
-
             <Field
               label="Photo type"
               hint="Optional label to keep your front, side, and low-light photos organized."

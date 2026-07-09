@@ -6,7 +6,6 @@ import { BookOpen, ChevronRight, GraduationCap, Search, UserPlus } from "lucide-
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
-  Alert,
   Badge,
   Button,
   EmptyState,
@@ -14,7 +13,7 @@ import {
   Input,
   Panel,
   PageShell,
-  type StatusState,
+  useToast,
 } from "@/components/ui";
 
 type CourseSummary = {
@@ -31,7 +30,7 @@ export default function StudentCoursesPage() {
   const [mine, setMine] = useState<CourseSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [joiningId, setJoiningId] = useState<number | null>(null);
-  const [status, setStatus] = useState<StatusState>(null);
+  const toast = useToast();
 
   const loadMine = async () => {
     try {
@@ -51,7 +50,7 @@ export default function StudentCoursesPage() {
       );
       setResults(res.data || []);
     } catch (err) {
-      setStatus({ kind: "error", message: getErrorMessage(err) });
+      toast.error(getErrorMessage(err));
     } finally {
       setSearching(false);
     }
@@ -65,10 +64,10 @@ export default function StudentCoursesPage() {
     setJoiningId(courseId);
     try {
       await axios.post(`/api/v1/courses/${courseId}/join-request`);
-      setStatus({ kind: "success", message: "Join request placed." });
+      toast.success("Join request placed.");
       loadMine();
     } catch (e) {
-      setStatus({ kind: "error", message: getErrorMessage(e) });
+      toast.error(getErrorMessage(e));
     } finally {
       setJoiningId(null);
     }
@@ -88,7 +87,6 @@ export default function StudentCoursesPage() {
           description="Search by title and session"
           icon={<Search className="h-5 w-5" />}
         >
-          <Alert status={status} className="mb-4" />
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={doSearch}>
             <Field label="Title">
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Data Structures" />

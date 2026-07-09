@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from typing import List, Optional
 from app.models.models import Course, Enrollment, JoinRequest, AttendanceSession, AttendanceRecord, User
+from sqlalchemy import delete as sa_delete
 from datetime import datetime
 import uuid
 
@@ -378,6 +379,32 @@ class CourseRepository:
         ).delete(synchronize_session=False)
         self.db.commit()
         return deleted
+
+    def delete_course(self, course_id: int) -> bool:
+        """
+        Permanently delete a course and everything attached to it: its attendance
+        sessions (cascading to their records), enrollments, and join requests.
+        Returns True if the course existed and was removed.
+        """
+        course = self.db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            return False
+
+        # Sessions cascade to their AttendanceRecord rows, so delete via the ORM
+        # to trigger the relationship cascade.
+        for session in (
+            self.db.query(AttendanceSession)
+            .filter(AttendanceSession.course_id == course_id)
+            .all()
+        ):
+            self.db.delete(session)
+
+        self.db.execute(sa_delete(Enrollment).where(Enrollment.course_id == course_id))
+        self.db.execute(sa_delete(JoinRequest).where(JoinRequest.course_id == course_id))
+
+        self.db.delete(course)
+        self.db.commit()
+        return True
 
     def add_student_to_course(self, course_id: int, student_id: int):
         existing = self.db.query(Enrollment).filter(

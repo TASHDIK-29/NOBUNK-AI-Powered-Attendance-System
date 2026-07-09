@@ -68,12 +68,12 @@ def build_attendance_pdf(data: dict) -> bytes:
     )
 
     title_style = ParagraphStyle(
-        "ReportTitle", fontName="Helvetica-Bold", fontSize=16,
-        alignment=1, textColor=INK, spaceAfter=2,
+        "ReportTitle", fontName="Helvetica-Bold", fontSize=18,
+        alignment=1, textColor=INK, leading=22, spaceAfter=10,
     )
     meta_style = ParagraphStyle(
         "ReportMeta", fontName="Helvetica", fontSize=9.5,
-        alignment=1, textColor=MUTED, leading=14,
+        alignment=1, textColor=MUTED, leading=15,
     )
     header_cell = ParagraphStyle(
         "HeaderCell", fontName="Helvetica-Bold", fontSize=7.5,

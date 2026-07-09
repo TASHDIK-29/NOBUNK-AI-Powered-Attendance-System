@@ -12,3 +12,6 @@ export { Stat, InfoRow } from './stat';
 export { Avatar } from './avatar';
 export { PageShell } from './page-shell';
 export { Modal } from './modal';
+export { ToastProvider, useToast } from './toast';
+export { ConfirmProvider, useConfirm } from './confirm';
+export type { ConfirmOptions } from './confirm';

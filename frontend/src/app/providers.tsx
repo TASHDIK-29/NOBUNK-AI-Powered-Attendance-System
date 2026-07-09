@@ -6,6 +6,7 @@ import { store } from '@/store';
 import type { AppDispatch } from '@/store';
 import { loadUserFromStorage } from '@/store/slices/authSlice';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ToastProvider, ConfirmProvider } from '@/components/ui';
 
 function AuthBootstrap({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch<AppDispatch>();
@@ -21,7 +22,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
       <ThemeProvider>
-        <AuthBootstrap>{children}</AuthBootstrap>
+        <ToastProvider>
+          <ConfirmProvider>
+            <AuthBootstrap>{children}</AuthBootstrap>
+          </ConfirmProvider>
+        </ToastProvider>
       </ThemeProvider>
     </Provider>
   );

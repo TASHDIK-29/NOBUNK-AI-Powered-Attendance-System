@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarPlus, FolderPlus, GraduationCap, Plus } from "lucide-react";
+import { FolderPlus, GraduationCap, Plus, Trash2 } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
-  Alert,
   Button,
   ButtonLink,
   EmptyState,
@@ -13,7 +12,8 @@ import {
   Input,
   Panel,
   PageShell,
-  type StatusState,
+  useConfirm,
+  useToast,
 } from "@/components/ui";
 
 type TeacherCourse = {
@@ -24,14 +24,15 @@ type TeacherCourse = {
 };
 
 export default function TeacherCoursesPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [courses, setCourses] = useState<TeacherCourse[]>([]);
   const [title, setTitle] = useState("");
   const [code, setCode] = useState("");
   const [session, setSession] = useState("");
   const [dept, setDept] = useState("");
   const [creating, setCreating] = useState(false);
-  const [sessionForId, setSessionForId] = useState<number | null>(null);
-  const [status, setStatus] = useState<StatusState>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadCourses = async () => {
     try {
@@ -48,7 +49,6 @@ export default function TeacherCoursesPage() {
 
   const createCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus(null);
     setCreating(true);
     try {
       await axios.post("/api/v1/teacher/courses", {
@@ -57,28 +57,38 @@ export default function TeacherCoursesPage() {
         session_target: session,
         department: dept,
       });
-      setStatus({ kind: "success", message: "Your course is ready." });
+      toast.success("Your course is ready.");
       setTitle("");
       setCode("");
       setSession("");
       setDept("");
       await loadCourses();
     } catch (err) {
-      setStatus({ kind: "error", message: getErrorMessage(err) });
+      toast.error(getErrorMessage(err));
     } finally {
       setCreating(false);
     }
   };
 
-  const createSession = async (courseId: number) => {
-    setSessionForId(courseId);
+  const deleteCourse = async (course: TeacherCourse) => {
+    const ok = await confirm({
+      title: "Delete course",
+      message: `Delete “${course.title}”? This permanently removes the course along with all its sessions, attendance records, and enrollments. This cannot be undone.`,
+      confirmLabel: "Delete course",
+      tone: "danger",
+    });
+    if (!ok) {
+      return;
+    }
+    setDeletingId(course.id);
     try {
-      await axios.post(`/api/v1/teacher/courses/${courseId}/sessions`);
-      setStatus({ kind: "success", message: "New attendance session started." });
-    } catch (e) {
-      setStatus({ kind: "error", message: getErrorMessage(e) });
+      await axios.delete(`/api/v1/teacher/courses/${course.id}`);
+      toast.success(`“${course.title}” was deleted.`);
+      await loadCourses();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
-      setSessionForId(null);
+      setDeletingId(null);
     }
   };
 
@@ -101,7 +111,6 @@ export default function TeacherCoursesPage() {
           className="lg:col-span-2"
         >
           <form className="space-y-4" onSubmit={createCourse}>
-            <Alert status={status} />
             <Field label="Title">
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Data Structures" required />
             </Field>
@@ -149,19 +158,20 @@ export default function TeacherCoursesPage() {
                     <div className="text-xs text-muted-foreground">Session: {c.session_target || "—"}</div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      loading={sessionForId === c.id}
-                      onClick={() => createSession(c.id)}
-                    >
-                      {sessionForId !== c.id && <CalendarPlus className="h-4 w-4" />}
-                      New session
-                    </Button>
                     <ButtonLink href={`/teacher/courses/${c.id}`} size="sm">
                       Open
                     </ButtonLink>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      loading={deletingId === c.id}
+                      onClick={() => deleteCourse(c)}
+                      title="Delete this course"
+                    >
+                      {deletingId !== c.id && <Trash2 className="h-4 w-4" />}
+                      Delete
+                    </Button>
                   </div>
                 </div>
               ))

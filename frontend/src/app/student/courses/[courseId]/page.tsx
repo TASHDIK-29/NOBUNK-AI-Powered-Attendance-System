@@ -13,7 +13,6 @@ import {
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
-  Alert,
   Badge,
   ButtonLink,
   EmptyState,
@@ -22,7 +21,7 @@ import {
   Skeleton,
   Stat,
   StatusBadge,
-  type StatusState,
+  useToast,
 } from "@/components/ui";
 
 type SessionRecord = {
@@ -62,9 +61,9 @@ export default function StudentCourseAttendancePage() {
   const params = useParams<{ courseId: string }>();
   const courseId = Number(params.courseId);
 
+  const toast = useToast();
   const [data, setData] = useState<CourseAttendance | null>(null);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<StatusState>(null);
 
   const load = useCallback(async () => {
     const res = await axios.get(`/api/v1/courses/${courseId}/my-attendance`);
@@ -79,12 +78,12 @@ export default function StudentCourseAttendancePage() {
       try {
         await load();
       } catch (error) {
-        setStatus({ kind: "error", message: getErrorMessage(error) });
+        toast.error(getErrorMessage(error));
       } finally {
         setLoading(false);
       }
     })();
-  }, [courseId, load]);
+  }, [courseId, load, toast]);
 
   if (loading && !data) {
     return (
@@ -118,8 +117,6 @@ export default function StudentCourseAttendancePage() {
       }
     >
       <div className="space-y-6">
-        <Alert status={status} />
-
         {data ? (
           <>
             {/* Summary */}

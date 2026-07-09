@@ -5,14 +5,13 @@ import { Check, Inbox, X } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
-  Alert,
   Avatar,
   Button,
   ButtonLink,
   EmptyState,
   Panel,
   PageShell,
-  type StatusState,
+  useToast,
 } from "@/components/ui";
 
 type JoinRequestItem = {
@@ -27,9 +26,9 @@ type JoinRequestItem = {
 };
 
 export default function TeacherJoinRequestsPage() {
+  const toast = useToast();
   const [requests, setRequests] = useState<JoinRequestItem[]>([]);
   const [decidingId, setDecidingId] = useState<number | null>(null);
-  const [status, setStatus] = useState<StatusState>(null);
 
   const load = async () => {
     try {
@@ -48,10 +47,10 @@ export default function TeacherJoinRequestsPage() {
     setDecidingId(id);
     try {
       await axios.post(`/api/v1/teacher/join-requests/${id}/decide?accept=${accept}`);
-      setStatus({ kind: "success", message: `Request ${accept ? "accepted" : "rejected"}.` });
+      toast.success(`Request ${accept ? "accepted" : "rejected"}.`);
       await load();
     } catch (e) {
-      setStatus({ kind: "error", message: getErrorMessage(e) });
+      toast.error(getErrorMessage(e));
     } finally {
       setDecidingId(null);
     }
@@ -73,7 +72,6 @@ export default function TeacherJoinRequestsPage() {
         description={requests.length ? `${requests.length} awaiting your decision` : undefined}
         icon={<Inbox className="h-5 w-5" />}
       >
-        <Alert status={status} className="mb-4" />
         <div className="space-y-3">
           {requests.length === 0 ? (
             <EmptyState

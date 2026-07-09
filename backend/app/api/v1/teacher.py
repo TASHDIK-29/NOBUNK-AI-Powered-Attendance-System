@@ -123,6 +123,15 @@ def _get_owned_course(course_id: int, db: Session, current_user: User) -> Course
     return course
 
 
+@router.delete("/courses/{course_id}")
+def delete_course(course_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_active_teacher)):
+    """Permanently delete a course the teacher owns, with all its data."""
+    _get_owned_course(course_id, db, current_user)
+    repo = CourseRepository(db)
+    repo.delete_course(course_id)
+    return {"message": "Course deleted.", "course_id": course_id}
+
+
 @router.delete("/courses/{course_id}/attendance")
 def reset_course_attendance(course_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_active_teacher)):
     """Reset the entire attendance record for a course (all sessions + records)."""

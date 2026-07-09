@@ -5,7 +5,6 @@ import { ScanFace, UploadCloud } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
-  Alert,
   Button,
   ButtonLink,
   EmptyState,
@@ -15,7 +14,7 @@ import {
   Panel,
   PageShell,
   Select,
-  type StatusState,
+  useToast,
 } from "@/components/ui";
 
 type TeacherCourse = {
@@ -33,8 +32,8 @@ function todayLocalISO() {
 }
 
 export default function TeacherAttendancePage() {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<StatusState>(null);
   const [courseId, setCourseId] = useState("");
   const [sessionDate, setSessionDate] = useState(todayLocalISO());
   const [files, setFiles] = useState<FileList | null>(null);
@@ -47,30 +46,29 @@ export default function TeacherAttendancePage() {
         const res = await axios.get("/api/v1/teacher/courses");
         setCourses(res.data || []);
       } catch (error) {
-        setStatus({ kind: "error", message: getErrorMessage(error) });
+        toast.error(getErrorMessage(error));
       } finally {
         setCoursesLoading(false);
       }
     })();
-  }, []);
+  }, [toast]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!courseId) {
-      setStatus({ kind: "error", message: "Please choose which course this is for." });
+      toast.error("Please choose which course this is for.");
       return;
     }
     if (!sessionDate) {
-      setStatus({ kind: "error", message: "Please choose the attendance date." });
+      toast.error("Please choose the attendance date.");
       return;
     }
     if (!files || files.length === 0) {
-      setStatus({ kind: "error", message: "Please choose at least one class photo." });
+      toast.error("Please choose at least one class photo.");
       return;
     }
 
     setLoading(true);
-    setStatus(null);
 
     try {
       const formData = new FormData();
@@ -82,16 +80,14 @@ export default function TeacherAttendancePage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setStatus({
-        kind: "success",
-        message:
-          "Your class photos were uploaded. We're marking attendance now — it'll be ready on the course page in a moment.",
-      });
+      toast.success(
+        "Your class photos were uploaded. We're marking attendance now — it'll be ready on the course page in a moment."
+      );
       setCourseId("");
       setSessionDate(todayLocalISO());
       setFiles(null);
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -125,8 +121,6 @@ export default function TeacherAttendancePage() {
             />
           ) : (
             <form className="space-y-5" onSubmit={submit}>
-              <Alert status={status} />
-
               <Field label="Course" hint="Only courses you teach are listed here.">
                 <Select
                   value={courseId}

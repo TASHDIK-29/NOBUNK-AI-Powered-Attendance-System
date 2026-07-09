@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { GraduationCap, UserPlus } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { Alert, Button, Field, Input, type StatusState } from "@/components/ui";
+import { Button, Field, Input, useToast } from "@/components/ui";
 import { AuthLayout } from "@/components/auth-layout";
 import { cn } from "@/lib/cn";
 
@@ -14,9 +14,9 @@ type Role = "student" | "teacher";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const toast = useToast();
   const [role, setRole] = useState<Role>("student");
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<StatusState>(null);
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -29,7 +29,6 @@ export default function RegisterPage() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setStatus(null);
 
     try {
       const payload = {
@@ -41,14 +40,11 @@ export default function RegisterPage() {
       };
 
       const response = await axios.post("/api/v1/auth/register", payload);
-      setStatus({
-        kind: "success",
-        message: `Account created for ${response.data.full_name}. You can now log in.`,
-      });
+      toast.success(`Account created for ${response.data.full_name}. You can now log in.`);
       setForm({ full_name: "", email: "", password: "", student_id: "", department: "", session_year: "" });
       router.replace("/auth/login");
     } catch (error) {
-      setStatus({ kind: "error", message: getErrorMessage(error) });
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -57,8 +53,6 @@ export default function RegisterPage() {
   return (
     <AuthLayout title="Create your account" subtitle="Join Smart Attendance in minutes">
       <form className="space-y-5" onSubmit={submit}>
-        <Alert status={status} />
-
         {/* Role selector — segmented control */}
         <Field label="I am a">
           <div className="grid grid-cols-2 gap-2 rounded-xl bg-surface-muted p-1">
