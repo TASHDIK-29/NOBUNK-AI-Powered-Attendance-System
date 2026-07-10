@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { themeInitScript } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
+import { RouteGuard } from "@/components/route-guard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,7 +40,9 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <Providers>
           <Navbar />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            <RouteGuard>{children}</RouteGuard>
+          </main>
           <Footer />
         </Providers>
       </body>

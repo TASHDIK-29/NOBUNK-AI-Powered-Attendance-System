@@ -14,12 +14,16 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  // False until we've read (or confirmed the absence of) a persisted session.
+  // Route guards wait for this so a refresh doesn't bounce a logged-in user.
+  initialized: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
+  initialized: false,
 };
 
 export const authSlice = createSlice({
@@ -33,6 +37,7 @@ export const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.isAuthenticated = true;
+      state.initialized = true;
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', action.payload.token);
         localStorage.setItem('user', JSON.stringify(action.payload.user));
@@ -42,6 +47,7 @@ export const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      state.initialized = true;
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -60,6 +66,7 @@ export const authSlice = createSlice({
           state.isAuthenticated = true;
         }
       }
+      state.initialized = true;
     }
   },
 });

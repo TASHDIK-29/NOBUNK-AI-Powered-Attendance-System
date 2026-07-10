@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   Bell,
   CalendarCheck,
-  CheckCheck,
   Inbox,
   Loader2,
   TriangleAlert,
@@ -126,32 +125,23 @@ export default function NotificationBell() {
     };
   }, [open]);
 
+  // Opening the panel counts as reading: clear the unread badge and mark
+  // everything read on the server. The list keeps this session's items visible
+  // (still highlighted) so the user can see what was new before it settles.
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next) void loadList();
-  };
-
-  const markAllRead = async () => {
-    try {
-      await axios.post('/api/v1/notifications/read-all');
-      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    if (!next) return;
+    void loadList();
+    if (unread > 0) {
       setUnread(0);
-    } catch {
-      // ignore
+      void axios.post('/api/v1/notifications/read-all').catch(() => {
+        // Silent — the badge will re-sync on the next poll if this failed.
+      });
     }
   };
 
-  const openItem = async (n: NotificationItem) => {
-    if (!n.is_read) {
-      try {
-        await axios.post(`/api/v1/notifications/${n.id}/read`);
-        setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
-        setUnread((c) => Math.max(0, c - 1));
-      } catch {
-        // ignore — still navigate
-      }
-    }
+  const openItem = (n: NotificationItem) => {
     setOpen(false);
     if (n.link) router.push(n.link);
   };
@@ -179,16 +169,6 @@ export default function NotificationBell() {
         <div className="absolute right-0 top-12 z-50 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl border border-border bg-surface shadow-elevated">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <span className="text-sm font-semibold">Notifications</span>
-            {items.some((n) => !n.is_read) ? (
-              <button
-                type="button"
-                onClick={markAllRead}
-                className="flex items-center gap-1 text-xs font-medium text-primary transition hover:opacity-80"
-              >
-                <CheckCheck className="h-3.5 w-3.5" />
-                Mark all read
-              </button>
-            ) : null}
           </div>
 
           <div className="max-h-[70vh] overflow-y-auto">

@@ -89,9 +89,11 @@ def create_attendance_notifications(db: Session, session_id: int) -> int:
                 )
             created += 1
 
-            # 2. Auto low-attendance alert if the student's overall course
-            #    attendance has fallen below the threshold.
-            if total_sessions > 0:
+            # 2. Auto low-attendance alert, sent to both the student and the
+            #    teacher, but only once the course has enough sessions to make the
+            #    percentage meaningful (more than LOW_ATTENDANCE_MIN_SESSIONS) and
+            #    the student's overall attendance is below the threshold.
+            if total_sessions > settings.LOW_ATTENDANCE_MIN_SESSIONS:
                 present_count = (
                     db.query(func.count(AttendanceRecord.id))
                     .join(

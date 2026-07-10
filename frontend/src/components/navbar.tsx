@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   CalendarCheck,
   GraduationCap,
@@ -46,10 +46,18 @@ export default function Navbar() {
   const dispatch = useAppDispatch();
   const auth = useAppSelector((s) => s.auth);
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const links = useNavLinks(auth.user?.role);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+  // Logging out always returns the user to the public home page.
+  const handleLogout = () => {
+    dispatch(logout());
+    setMobileOpen(false);
+    router.replace('/');
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
@@ -107,7 +115,7 @@ export default function Navbar() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => dispatch(logout())}
+                onClick={handleLogout}
                 aria-label="Log out"
                 title="Log out"
               >
@@ -174,10 +182,7 @@ export default function Navbar() {
                   variant="secondary"
                   block
                   className="mt-2"
-                  onClick={() => {
-                    dispatch(logout());
-                    setMobileOpen(false);
-                  }}
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
                   Log out

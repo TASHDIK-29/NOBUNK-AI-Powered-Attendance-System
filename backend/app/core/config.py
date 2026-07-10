@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     # Attendance percentage below which students (and their teacher) get an
     # automatic low-attendance alert after a session is processed.
     LOW_ATTENDANCE_THRESHOLD: float = 60.0
+    # The alert is only meaningful once enough sessions exist: it fires only when
+    # a course has MORE than this many sessions, so early low percentages (e.g.
+    # absent for the first of 2 classes) don't trigger premature warnings.
+    LOW_ATTENDANCE_MIN_SESSIONS: int = 8
     # Adaptive resizing before detection. Small/low-res classroom photos are
     # upscaled so far/back-row faces become large enough to detect; oversized
     # uploads are capped to keep detection fast and memory-safe.
