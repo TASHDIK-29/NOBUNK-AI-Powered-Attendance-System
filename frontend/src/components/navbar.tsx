@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  CalendarCheck,
   GraduationCap,
   Inbox,
   LayoutDashboard,
@@ -64,12 +64,19 @@ export default function Navbar() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-            <CalendarCheck className="h-5 w-5" />
+          <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-primary shadow-soft">
+            <Image
+              src="/logo.png"
+              alt="NoBunk logo"
+              width={100}
+              height={100}
+              className="h-full w-full object-cover"
+              priority
+            />
           </span>
           <span className="hidden flex-col leading-tight sm:flex">
-            <span className="text-sm font-bold tracking-tight">Smart Attendance</span>
-            <span className="text-[11px] text-muted-foreground">AI attendance matching</span>
+            <span className="text-xl font-bold tracking-tight">NoBunk</span>
+            <span className="text-[11px] text-muted-foreground">AI attendance system</span>
           </span>
         </Link>
 

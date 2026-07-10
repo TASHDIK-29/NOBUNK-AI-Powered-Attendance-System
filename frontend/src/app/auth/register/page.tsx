@@ -51,7 +51,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <AuthLayout title="Create your account" subtitle="Join Smart Attendance in minutes">
+    <AuthLayout title="Create your account" subtitle="Join NoBunk in minutes">
       <form className="space-y-5" onSubmit={submit}>
         {/* Role selector — segmented control */}
         <Field label="I am a">

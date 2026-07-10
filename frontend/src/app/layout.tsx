@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Attendance System",
+  title: "NoBunk",
   description: "Automated classroom attendance using AI face recognition",
 };
 

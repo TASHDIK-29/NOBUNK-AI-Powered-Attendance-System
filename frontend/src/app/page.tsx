@@ -66,7 +66,7 @@ export default function Home() {
             Face recognition attendance, done right
           </span>
           <h1 className="mt-6 text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
-            Smart Attendance —{' '}
+            NoBunk —{' '}
             <span className="bg-linear-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
               reliable, private, fast
             </span>

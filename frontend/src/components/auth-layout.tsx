@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { CalendarCheck, ShieldCheck, Target, Zap } from 'lucide-react';
+import Image from 'next/image';
+import { ShieldCheck, Target, Zap } from 'lucide-react';
 import { Card } from '@/components/ui';
 
 const highlights = [
@@ -31,10 +32,16 @@ export function AuthLayout({
             className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl"
           />
           <Link href="/" className="relative flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
-              <CalendarCheck className="h-5 w-5" />
+            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white/15">
+              <Image
+                src="/logo.jpg"
+                alt="NoBunk logo"
+                width={36}
+                height={36}
+                className="h-full w-full object-cover"
+              />
             </span>
-            <span className="text-sm font-bold">Smart Attendance</span>
+            <span className="text-sm font-bold">NoBunk</span>
           </Link>
           <div className="relative space-y-6">
             <h2 className="text-3xl font-bold leading-tight">{subtitle}</h2>
