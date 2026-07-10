@@ -18,7 +18,26 @@ class Settings(BaseSettings):
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
-    
+
+    # Cloudinary — permanent hosting for the classroom photos of each session.
+    # Uploads run in a background task AFTER attendance has been computed, so a
+    # slow network round-trip never delays the teacher's result.
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_FOLDER: str = "attendance_system"
+    # Remove the local copy once the image is safely stored on Cloudinary.
+    CLOUDINARY_DELETE_LOCAL_AFTER_UPLOAD: bool = True
+
+    @property
+    def cloudinary_enabled(self) -> bool:
+        """Uploads are skipped (and local files kept) unless fully configured."""
+        return bool(
+            self.CLOUDINARY_CLOUD_NAME
+            and self.CLOUDINARY_API_KEY
+            and self.CLOUDINARY_API_SECRET
+        )
+
     # DeepFace
     FACE_DETECTOR: str = "retinaface"
     # Secondary detector tried when the primary finds no usable faces in an image.

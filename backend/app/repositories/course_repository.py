@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from typing import List, Optional
-from app.models.models import Course, Enrollment, JoinRequest, AttendanceSession, AttendanceRecord, User
+from app.models.models import Course, Enrollment, JoinRequest, AttendanceSession, AttendanceRecord, SessionImage, User
 from app.repositories.notification_repository import NotificationRepository
 from sqlalchemy import delete as sa_delete
 from datetime import datetime
@@ -155,10 +155,23 @@ class CourseRepository:
         sessions = (
             self.db.query(AttendanceSession)
             .filter(AttendanceSession.course_id == course_id)
-            .order_by(AttendanceSession.date.desc())
+            # id breaks ties: sessions a teacher takes on the same calendar day
+            # share a date, so without it the newest could sort last and be
+            # numbered #1. Newest first (highest id) → highest session number.
+            .order_by(AttendanceSession.date.desc(), AttendanceSession.id.desc())
             .all()
         )
         total_sessions = len(sessions)
+
+        # Hosted-photo count per session, in one grouped query rather than N.
+        image_counts = dict(
+            self.db.query(SessionImage.session_id, func.count(SessionImage.id))
+            .join(AttendanceSession, AttendanceSession.id == SessionImage.session_id)
+            .filter(AttendanceSession.course_id == course_id)
+            .group_by(SessionImage.session_id)
+            .all()
+        )
+
         # Number sessions per-course (oldest = 1). Listed newest-first, so the
         # first item is session #total_sessions.
         session_summaries = [
@@ -167,6 +180,7 @@ class CourseRepository:
                 "session_number": total_sessions - i,
                 "date": s.date,
                 "status": s.status,
+                "image_count": image_counts.get(s.id, 0),
             }
             for i, s in enumerate(sessions)
         ]
@@ -240,7 +254,8 @@ class CourseRepository:
         sessions = (
             self.db.query(AttendanceSession)
             .filter(AttendanceSession.course_id == course_id)
-            .order_by(AttendanceSession.date.desc())
+            # id tiebreak so same-day sessions number consistently (see overview).
+            .order_by(AttendanceSession.date.desc(), AttendanceSession.id.desc())
             .all()
         )
         total_sessions = len(sessions)
@@ -372,11 +387,35 @@ class CourseRepository:
             stmt = stmt.where(User.session_year == session_year)
         return self.db.execute(stmt).scalars().all()
 
+    def _hosted_public_ids(self, course_id: int) -> List[str]:
+        """public_ids of every Cloudinary asset belonging to a course's sessions."""
+        return [
+            public_id
+            for (public_id,) in self.db.query(SessionImage.public_id)
+            .join(AttendanceSession, AttendanceSession.id == SessionImage.session_id)
+            .filter(AttendanceSession.course_id == course_id)
+            .all()
+        ]
+
+    @staticmethod
+    def _purge_hosted_images(public_ids: List[str]) -> None:
+        """
+        Delete hosted images in the background once their DB rows are gone.
+        Imported lazily so the repository stays usable without a broker.
+        """
+        if not public_ids:
+            return
+        from app.tasks.image_tasks import delete_cloudinary_assets
+
+        delete_cloudinary_assets.delay(public_ids)
+
     def reset_course_attendance(self, course_id: int) -> int:
         """
         Wipe all attendance for a course: delete every attendance session (which
-        cascades to its records), giving a clean slate. Returns sessions removed.
+        cascades to its records and hosted images), giving a clean slate.
+        Returns sessions removed.
         """
+        public_ids = self._hosted_public_ids(course_id)
         sessions = (
             self.db.query(AttendanceSession)
             .filter(AttendanceSession.course_id == course_id)
@@ -384,8 +423,9 @@ class CourseRepository:
         )
         count = len(sessions)
         for session in sessions:
-            self.db.delete(session)  # cascade removes AttendanceRecord rows
+            self.db.delete(session)  # cascade removes AttendanceRecord + SessionImage rows
         self.db.commit()
+        self._purge_hosted_images(public_ids)
         return count
 
     def remove_student_from_course(self, course_id: int, student_id: int) -> int:
@@ -427,8 +467,10 @@ class CourseRepository:
         if not course:
             return False
 
-        # Sessions cascade to their AttendanceRecord rows, so delete via the ORM
-        # to trigger the relationship cascade.
+        public_ids = self._hosted_public_ids(course_id)
+
+        # Sessions cascade to their AttendanceRecord and SessionImage rows, so
+        # delete via the ORM to trigger the relationship cascade.
         for session in (
             self.db.query(AttendanceSession)
             .filter(AttendanceSession.course_id == course_id)
@@ -441,6 +483,7 @@ class CourseRepository:
 
         self.db.delete(course)
         self.db.commit()
+        self._purge_hosted_images(public_ids)
         return True
 
     def add_student_to_course(self, course_id: int, student_id: int):

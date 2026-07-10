@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.api.deps import get_db, get_current_active_teacher, get_current_active_user
 from app.repositories.course_repository import CourseRepository
-from app.schemas.course import CourseCreate, CourseOut, SessionOut, JoinRequestOut, CourseOverviewOut, StudentSearchOut, AddStudentToCourseOut, JoinRequestDetailOut
-from app.models.models import Course, User
+from app.schemas.course import CourseCreate, CourseOut, SessionOut, JoinRequestOut, CourseOverviewOut, StudentSearchOut, AddStudentToCourseOut, JoinRequestDetailOut, StudentCourseAttendanceOut
+from app.models.models import Course, Enrollment, User
 from app.services.pdf_service import build_attendance_pdf
 
 router = APIRouter()
@@ -59,6 +59,36 @@ def course_overview(course_id: int, db: Session = Depends(get_db), current_user 
     if not overview:
         raise HTTPException(status_code=404, detail="Course not found")
     return overview
+
+
+@router.get(
+    "/courses/{course_id}/students/{student_id}/attendance",
+    response_model=StudentCourseAttendanceOut,
+)
+def student_course_attendance(
+    course_id: int,
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_teacher),
+):
+    """
+    One enrolled student's per-session attendance in a course the teacher owns —
+    powers the per-student detail + manual-correction view.
+    """
+    _get_owned_course(course_id, db, current_user)
+
+    enrolled = db.query(Enrollment).filter(
+        Enrollment.course_id == course_id,
+        Enrollment.student_id == student_id,
+    ).first()
+    if not enrolled:
+        raise HTTPException(status_code=404, detail="Student is not enrolled in this course")
+
+    repo = CourseRepository(db)
+    data = repo.get_student_course_attendance(course_id=course_id, student_id=student_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return data
 
 
 @router.get("/courses/{course_id}/attendance/pdf")

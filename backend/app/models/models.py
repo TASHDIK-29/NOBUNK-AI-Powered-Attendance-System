@@ -79,6 +79,29 @@ class AttendanceSession(Base):
 
     course = relationship("Course", back_populates="attendance_sessions")
     records = relationship("AttendanceRecord", back_populates="session", cascade="all, delete-orphan")
+    images = relationship("SessionImage", back_populates="session", cascade="all, delete-orphan")
+
+
+class SessionImage(Base):
+    """A classroom photo of one attendance session, hosted on Cloudinary."""
+
+    __tablename__ = "session_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(
+        Integer, ForeignKey("attendance_sessions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    # Cloudinary secure_url of the original upload.
+    url = Column(String, nullable=False)
+    # Cloudinary public_id — needed to build derived URLs and to delete the asset.
+    public_id = Column(String, nullable=False, index=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    format = Column(String, nullable=True)
+    bytes = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    session = relationship("AttendanceSession", back_populates="images")
 
 class AttendanceRecord(Base):
     __tablename__ = "attendance_records"

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useBodyScrollLock } from '@/lib/use-body-scroll-lock';
 
 /**
  * Accessible-ish modal dialog matching the Panel header style. Closes on Escape
@@ -35,13 +36,11 @@ export function Modal({
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
+    return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  // Shared, reference-counted lock so nested overlays don't clobber each other.
+  useBodyScrollLock(open);
 
   // Modals only open via client interaction, so `document` is always present
   // here; on the server (and initial render) `open` is false, so we render null

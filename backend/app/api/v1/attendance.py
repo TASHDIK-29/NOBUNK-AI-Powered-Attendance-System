@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_active_teacher
-from app.models.models import AttendanceSession, Course
+from app.models.models import AttendanceSession, Course, SessionImage
+from app.schemas.attendance import SessionImagesOut
+from app.services import cloudinary_service
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -100,6 +102,54 @@ def get_session_status(session_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session not found")
         
     return {"session_id": session.id, "status": session.status}
+
+@router.get("/session/{session_id}/images", response_model=SessionImagesOut)
+def get_session_images(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_teacher),
+):
+    """
+    The classroom photos used for one attendance session, hosted on Cloudinary.
+
+    Returns an empty list while the upload task is still running (it starts only
+    once attendance has finished), so the client can poll or offer a refresh.
+    """
+    session = db.query(AttendanceSession).filter(AttendanceSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    course = db.query(Course).filter(Course.id == session.course_id).first()
+    if not course or course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not allowed to view this session")
+
+    images = (
+        db.query(SessionImage)
+        .filter(SessionImage.session_id == session_id)
+        .order_by(SessionImage.id.asc())
+        .all()
+    )
+
+    return {
+        "session_id": session_id,
+        "count": len(images),
+        "hosting_enabled": cloudinary_service.is_enabled(),
+        "images": [
+            {
+                "id": image.id,
+                "url": image.url,
+                "thumbnail_url": cloudinary_service.thumbnail_url(image.url),
+                "preview_url": cloudinary_service.preview_url(image.url),
+                "width": image.width,
+                "height": image.height,
+                "format": image.format,
+                "bytes": image.bytes,
+                "created_at": image.created_at,
+            }
+            for image in images
+        ],
+    }
+
 
 @router.put("/session/{session_id}/manual-review")
 def update_attendance_manually(

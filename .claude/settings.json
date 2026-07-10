@@ -11,7 +11,19 @@
       "Bash(git add *)",
       "Bash(grep -iE \"venv/|node_modules/|/uploads/|\\\\.env$\")",
       "Bash(rm -rf frontend/.git)",
-      "Bash(grep -iE \"venv/|node_modules/|/uploads/|\\\\.env$|settings.local\")"
+      "Bash(grep -iE \"venv/|node_modules/|/uploads/|\\\\.env$|settings.local\")",
+      "Bash(./venv/Scripts/python.exe -c \"import cloudinary; print\\('cloudinary', cloudinary.VERSION\\)\")",
+      "Bash(./venv/Scripts/python.exe -m pip install \"cloudinary==1.44.1\")",
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(./venv/Scripts/python.exe -m alembic current)",
+      "Bash(./venv/Scripts/python.exe -m alembic heads)",
+      "Bash(./venv/Scripts/python.exe -m alembic history)",
+      "Bash(grep -roh \"aspect-ratio:4/3\\\\|\\\\.aspect-4\\\\\\\\\\\\\\\\/3\" .next/static/css/)",
+      "Bash(grep -o \"aspect-4\\\\\\\\\\\\\\\\/3{[^}]*}\" .next/static/css/*.css)",
+      "Bash(grep -oh \"\\\\.z-60{[^}]*}\\\\|\\\\.aspect-4\\\\\\\\\\\\\\\\/3{[^}]*}\\\\|\\\\.aspect-\\\\\\\\\\\\\\\\\\\\[4\\\\\\\\\\\\\\\\/3\\\\\\\\\\\\\\\\\\\\]{[^}]*}\" .next/static/chunks/*.css)",
+      "Bash(grep -Ev \"WARNING|oneDNN|I0000|absl|deprecated|^\\\\s*$\")",
+      "Bash(./venv/Scripts/python.exe -c \"from app.repositories.course_repository import CourseRepository; print\\('repo import ok'\\)\")",
+      "Bash(./venv/Scripts/python.exe -c \"import app.api.v1.teacher; print\\('teacher api ok'\\)\")"
     ]
   }
 }

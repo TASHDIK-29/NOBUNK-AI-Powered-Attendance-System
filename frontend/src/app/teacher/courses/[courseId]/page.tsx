@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   FileDown,
+  Images,
   RotateCcw,
   Search,
   UploadCloud,
@@ -27,12 +28,13 @@ import {
   Modal,
   Panel,
   PageShell,
-  Select,
   Skeleton,
   Stat,
   useConfirm,
   useToast,
 } from "@/components/ui";
+import { SessionsDrawer } from "@/components/sessions-drawer";
+import { StudentAttendanceModal } from "@/components/student-attendance-modal";
 import { cn } from "@/lib/cn";
 
 type CourseStudent = {
@@ -51,6 +53,7 @@ type CourseSession = {
   session_number: number;
   date: string;
   status: string;
+  image_count: number;
 };
 
 type CourseOverview = {
@@ -118,11 +121,11 @@ export default function TeacherCourseDetailPage() {
   const [searching, setSearching] = useState(false);
   const [addingStudentId, setAddingStudentId] = useState<number | null>(null);
 
-  // Manual-attendance modal (per student)
-  const [manualStudent, setManualStudent] = useState<CourseStudent | null>(null);
-  const [manualSessionId, setManualSessionId] = useState("");
-  const [manualPresent, setManualPresent] = useState(true);
-  const [savingManual, setSavingManual] = useState(false);
+  // Sessions slide-over
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+
+  // Per-student attendance detail + correction modal
+  const [detailStudent, setDetailStudent] = useState<CourseStudent | null>(null);
 
   const refreshOverview = useCallback(async () => {
     const res = await axios.get(`/api/v1/teacher/courses/${courseId}/overview`);
@@ -278,6 +281,7 @@ export default function TeacherCourseDetailPage() {
       const res = await axios.delete(`/api/v1/teacher/courses/${courseId}/attendance`);
       toast.success(res.data?.message ?? "Course attendance reset.");
       setPollingSessionId(null);
+      setSessionsOpen(false);
       await refreshOverview();
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -316,37 +320,6 @@ export default function TeacherCourseDetailPage() {
       toast.error("Couldn't generate the attendance PDF. Please try again.");
     } finally {
       setDownloadingPdf(false);
-    }
-  };
-
-  const openManualModal = (student: CourseStudent) => {
-    setManualStudent(student);
-    setManualSessionId(overview?.sessions?.[0] ? String(overview.sessions[0].id) : "");
-    setManualPresent(true);
-  };
-
-  const submitManualAttendance = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!manualStudent || !manualSessionId) {
-      toast.error("Choose a session to update.");
-      return;
-    }
-    setSavingManual(true);
-    try {
-      await axios.put(`/api/v1/attendance/session/${manualSessionId}/manual-review`, null, {
-        params: { student_id: manualStudent.user_id, is_present: manualPresent },
-      });
-      const sessionNo =
-        overview?.sessions.find((s) => String(s.id) === manualSessionId)?.session_number ?? "?";
-      toast.success(
-        `Marked ${manualStudent.full_name} ${manualPresent ? "present" : "absent"} for session ${sessionNo}.`
-      );
-      setManualStudent(null);
-      await refreshOverview();
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    } finally {
-      setSavingManual(false);
     }
   };
 
@@ -395,6 +368,18 @@ export default function TeacherCourseDetailPage() {
           <Button type="button" onClick={() => setAddStudentOpen(true)}>
             <UserPlus className="h-4 w-4" />
             Add student
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setSessionsOpen(true)}
+            title="View attendance sessions and their photos"
+          >
+            <Images className="h-4 w-4" />
+            Sessions
+            {(overview?.total_sessions ?? 0) > 0 ? (
+              <Badge variant="primary">{overview?.total_sessions}</Badge>
+            ) : null}
           </Button>
           <Button
             type="button"
@@ -519,12 +504,12 @@ export default function TeacherCourseDetailPage() {
                         type="button"
                         size="sm"
                         variant="secondary"
-                        onClick={() => openManualModal(student)}
-                        title="Manually correct a session for this student"
+                        onClick={() => setDetailStudent(student)}
+                        title="View this student's per-session record and correct it"
                         disabled={(overview?.total_sessions ?? 0) === 0}
                       >
                         <ClipboardCheck className="h-4 w-4" />
-                        Update
+                        Details
                       </Button>
                       <Button
                         type="button"
@@ -558,6 +543,13 @@ export default function TeacherCourseDetailPage() {
           </div>
         </Panel>
       </div>
+
+      {/* Sessions slide-over (lists sessions + opens each one's photo gallery). */}
+      <SessionsDrawer
+        open={sessionsOpen}
+        sessions={overview?.sessions ?? []}
+        onClose={() => setSessionsOpen(false)}
+      />
 
       {/* Add-student modal */}
       <Modal
@@ -639,50 +631,19 @@ export default function TeacherCourseDetailPage() {
         </div>
       </Modal>
 
-      {/* Manual-attendance modal */}
-      <Modal
-        open={manualStudent !== null}
-        onClose={() => setManualStudent(null)}
-        title="Manual attendance"
-        description={
-          manualStudent
-            ? `Correct a specific session for ${manualStudent.full_name}.`
-            : undefined
-        }
-        icon={<ClipboardCheck className="h-5 w-5" />}
-      >
-        <form className="space-y-4" onSubmit={submitManualAttendance}>
-          <Field label="Session">
-            <Select value={manualSessionId} onChange={(e) => setManualSessionId(e.target.value)}>
-              <option value="">Select session</option>
-              {overview?.sessions.map((session) => (
-                <option key={session.id} value={session.id}>
-                  Session {session.session_number} · {new Date(session.date).toLocaleDateString()} ·{" "}
-                  {session.status}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Status">
-            <Select
-              value={manualPresent ? "present" : "absent"}
-              onChange={(e) => setManualPresent(e.target.value === "present")}
-            >
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-            </Select>
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setManualStudent(null)}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={savingManual}>
-              {!savingManual && <ClipboardCheck className="h-4 w-4" />}
-              Save
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Per-student detail + correction modal — keyed so each student's record
+          loads fresh. */}
+      {detailStudent ? (
+        <StudentAttendanceModal
+          key={detailStudent.user_id}
+          courseId={courseId}
+          student={detailStudent}
+          onClose={() => setDetailStudent(null)}
+          onChanged={() => {
+            void refreshOverview();
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

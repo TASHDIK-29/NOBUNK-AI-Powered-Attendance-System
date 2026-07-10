@@ -66,6 +66,9 @@ class CourseSessionSummaryOut(BaseModel):
     session_number: int
     date: datetime
     status: str
+    # Number of classroom photos hosted for this session (0 while the upload
+    # task is still running, or if image hosting is disabled).
+    image_count: int = 0
 
     class Config:
         from_attributes = True

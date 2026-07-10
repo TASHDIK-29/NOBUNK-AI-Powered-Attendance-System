@@ -3,6 +3,7 @@ import logging
 from typing import List
 from sqlalchemy.orm import Session
 from app.tasks.celery_app import celery_app
+from app.tasks.image_tasks import upload_session_images
 from app.services.face_service import face_service
 from app.services.attendance_matching import assign_faces_to_students, size_adaptive_threshold
 from app.repositories.attendance_repository import AttendanceRepository
@@ -85,9 +86,6 @@ def process_attendance_images(session_id: int, course_id: int, image_paths: List
                 if prev is None or distance < prev:
                     best_distance_by_student[student_id] = distance
 
-            # Optionally clean up the file
-            # os.remove(img_path)
-
         # 5. Mark confidently-matched students present.
         marked_students = set()
         for student_id, distance in best_distance_by_student.items():
@@ -133,3 +131,9 @@ def process_attendance_images(session_id: int, course_id: int, image_paths: List
             db.commit()
     finally:
         db.close()
+        # 9. Hand the images off to the Cloudinary workflow. This is dispatched as
+        #    a separate task *after* attendance is finished (and long after the
+        #    teacher's HTTP response was returned), so hosting never costs the
+        #    attendance path any time. Local files are removed once hosted.
+        if image_paths:
+            upload_session_images.delay(session_id=session_id, image_paths=image_paths)
