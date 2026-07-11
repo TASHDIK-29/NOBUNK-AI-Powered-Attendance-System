@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   Inbox,
   Loader2,
+  ScanFace,
   TriangleAlert,
   UserRoundCheck,
   UserRoundPlus,
@@ -36,6 +37,8 @@ const typeIcon: Record<string, LucideIcon> = {
   join_rejected: UserRoundCheck,
   attendance_marked: CalendarCheck,
   low_attendance: TriangleAlert,
+  review_recognized: ScanFace,
+  review_not_recognized: ScanFace,
 };
 
 const typeAccent: Record<string, string> = {
@@ -44,6 +47,8 @@ const typeAccent: Record<string, string> = {
   join_rejected: 'bg-danger-soft text-danger',
   attendance_marked: 'bg-primary/10 text-primary',
   low_attendance: 'bg-danger-soft text-danger',
+  review_recognized: 'bg-success-soft text-success',
+  review_not_recognized: 'bg-surface-muted text-muted-foreground',
 };
 
 function timeAgo(iso: string): string {

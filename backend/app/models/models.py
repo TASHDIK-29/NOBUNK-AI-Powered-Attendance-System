@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
@@ -112,10 +112,67 @@ class AttendanceRecord(Base):
     is_present = Column(Boolean, default=False)
     confidence = Column(Float, nullable=True)
     reviewed_manually = Column(Boolean, default=False)
+    # True when the student was marked present through the automated self-review
+    # flow (they marked their own face in a session photo). Distinct from
+    # reviewed_manually, which means a teacher overrode the record.
+    via_review = Column(Boolean, default=False)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     session = relationship("AttendanceSession", back_populates="records")
     student = relationship("User")
+
+
+class AttendanceReview(Base):
+    """
+    A student's one-shot request to be re-evaluated for a session they were
+    marked absent in. The student marks their own face in one of the session's
+    photos; the system verifies that crop against the student's stored
+    embeddings (a 1:1 check, unlike the strict 1:N classroom matching) and, if
+    recognized, flips their attendance record to present.
+
+    A student gets exactly one review per session (enforced by the unique
+    constraint below), so a genuine "not recognized" outcome is final. Only a
+    system-side failure resets the row to allow a retry.
+    """
+
+    __tablename__ = "attendance_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(
+        Integer, ForeignKey("attendance_sessions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    student_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    # The session photo the student marked their face in. SET NULL if that image
+    # is later removed, so the review history survives.
+    image_id = Column(Integer, ForeignKey("session_images.id", ondelete="SET NULL"), nullable=True)
+
+    # Marked region as a fraction (0..1) of the image's natural size, so it maps
+    # regardless of how the photo was scaled in the browser. (x, y) is the
+    # top-left of the marker's bounding box; (w, h) its size.
+    region_x = Column(Float, nullable=False)
+    region_y = Column(Float, nullable=False)
+    region_w = Column(Float, nullable=False)
+    region_h = Column(Float, nullable=False)
+    # "circle" or "square" — cosmetic; the crop is the bounding box either way.
+    shape = Column(String, default="circle")
+
+    # "pending", "recognized", "not_recognized", "failed".
+    status = Column(String, default="pending", nullable=False)
+    # Best cosine distance from the marked crop to the student's own embeddings.
+    distance = Column(Float, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    session = relationship("AttendanceSession")
+    student = relationship("User", foreign_keys=[student_id])
+    image = relationship("SessionImage")
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "student_id", name="uq_review_session_student"),
+    )
 
 
 class Notification(Base):

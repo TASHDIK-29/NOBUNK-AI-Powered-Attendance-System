@@ -70,6 +70,23 @@ class Settings(BaseSettings):
     # This is the main precision guard once far-face thresholds are relaxed.
     FACE_MATCH_MARGIN: float = 0.08
 
+    # --- Student self-review evaluation ---------------------------------------
+    # When a student is marked absent they may request ONE automated review: they
+    # mark their own face in a session photo and the system re-checks that crop.
+    # Unlike classroom marking (1:N, must guard against matching the wrong
+    # student), this is a 1:1 verification against the requesting student's own
+    # embeddings — the target is fixed, so false-positive risk is far lower and
+    # the threshold is deliberately more lenient than FACE_MATCH_THRESHOLD.
+    FACE_REVIEW_THRESHOLD: float = 0.62
+    # Anti-cheat guard: the marked face must be closer to the requesting student
+    # than to any OTHER enrolled student by at least this margin, so a student
+    # cannot pass by marking a look-alike classmate. Lenient by design.
+    FACE_REVIEW_IMPOSTOR_MARGIN: float = 0.04
+    # The marked box is padded by this fraction on each side before cropping, so
+    # the detector has enough context to detect and align the face reliably even
+    # if the student drew a tight marker.
+    FACE_REVIEW_CROP_PADDING: float = 0.25
+
     # Attendance percentage below which students (and their teacher) get an
     # automatic low-attendance alert after a session is processed.
     LOW_ATTENDANCE_THRESHOLD: float = 60.0

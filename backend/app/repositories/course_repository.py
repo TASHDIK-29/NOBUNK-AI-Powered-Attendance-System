@@ -1,7 +1,17 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from typing import List, Optional
-from app.models.models import Course, Enrollment, JoinRequest, AttendanceSession, AttendanceRecord, SessionImage, User
+from app.models.models import (
+    Course,
+    Enrollment,
+    JoinRequest,
+    AttendanceSession,
+    AttendanceRecord,
+    AttendanceReview,
+    SessionImage,
+    StudentEmbedding,
+    User,
+)
 from app.repositories.notification_repository import NotificationRepository
 from sqlalchemy import delete as sa_delete
 from datetime import datetime
@@ -273,6 +283,38 @@ class CourseRepository:
             )
         }
 
+        # Existing reviews and per-session photo counts, both used to decide
+        # whether an absent session can still be self-reviewed. Fetched in bulk
+        # (one query each) rather than per session.
+        reviews_by_session = {
+            r.session_id: r
+            for r in (
+                self.db.query(AttendanceReview)
+                .join(AttendanceSession, AttendanceSession.id == AttendanceReview.session_id)
+                .filter(
+                    AttendanceSession.course_id == course_id,
+                    AttendanceReview.student_id == student_id,
+                )
+                .all()
+            )
+        }
+        image_counts = dict(
+            self.db.query(SessionImage.session_id, func.count(SessionImage.id))
+            .join(AttendanceSession, AttendanceSession.id == SessionImage.session_id)
+            .filter(AttendanceSession.course_id == course_id)
+            .group_by(SessionImage.session_id)
+            .all()
+        )
+        has_embeddings = (
+            self.db.query(StudentEmbedding.id)
+            .filter(StudentEmbedding.student_id == student_id)
+            .first()
+            is not None
+        )
+
+        _reviewable_statuses = {"review_needed", "completed"}
+        _blocking_review_statuses = {"pending", "recognized", "not_recognized"}
+
         present_count = 0
         absent_count = 0
         session_rows = []
@@ -284,6 +326,17 @@ class CourseRepository:
                     present_count += 1
                 else:
                     absent_count += 1
+
+            review = reviews_by_session.get(s.id)
+            review_status = review.status if review else None
+            review_eligible = (
+                not is_present
+                and s.status in _reviewable_statuses
+                and image_counts.get(s.id, 0) > 0
+                and has_embeddings
+                and (review is None or review.status not in _blocking_review_statuses)
+            )
+
             session_rows.append(
                 {
                     "session_id": s.id,
@@ -293,7 +346,10 @@ class CourseRepository:
                     "is_present": is_present,
                     "confidence": record.confidence if record else None,
                     "reviewed_manually": bool(record.reviewed_manually) if record else False,
+                    "via_review": bool(record.via_review) if record else False,
                     "has_record": record is not None,
+                    "review_eligible": review_eligible,
+                    "review_status": review_status,
                 }
             )
 

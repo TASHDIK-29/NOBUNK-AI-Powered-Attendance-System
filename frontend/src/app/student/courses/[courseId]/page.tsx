@@ -10,10 +10,12 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import { ScanFace } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
   Badge,
+  Button,
   ButtonLink,
   EmptyState,
   Panel,
@@ -23,6 +25,7 @@ import {
   StatusBadge,
   useToast,
 } from "@/components/ui";
+import { StudentReviewModal } from "@/components/student-review-modal";
 
 type SessionRecord = {
   session_id: number;
@@ -32,7 +35,10 @@ type SessionRecord = {
   is_present: boolean;
   confidence: number | null;
   reviewed_manually: boolean;
+  via_review: boolean;
   has_record: boolean;
+  review_eligible: boolean;
+  review_status: "pending" | "recognized" | "not_recognized" | "failed" | null;
 };
 
 type CourseAttendance = {
@@ -64,6 +70,7 @@ export default function StudentCourseAttendancePage() {
   const toast = useToast();
   const [data, setData] = useState<CourseAttendance | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewSession, setReviewSession] = useState<SessionRecord | null>(null);
 
   const load = useCallback(async () => {
     const res = await axios.get(`/api/v1/courses/${courseId}/my-attendance`);
@@ -184,7 +191,12 @@ export default function StudentCourseAttendancePage() {
                             <CalendarDays className="h-3.5 w-3.5" />
                             {new Date(s.date).toLocaleString()}
                           </span>
-                          {s.is_present && s.confidence != null && !s.reviewed_manually ? (
+                          {s.is_present && s.via_review ? (
+                            <span className="inline-flex items-center gap-1">
+                              <ScanFace className="h-3.5 w-3.5" />
+                              Marked present via your review
+                            </span>
+                          ) : s.is_present && s.confidence != null && !s.reviewed_manually ? (
                             <span>Recognized with {(s.confidence * 100).toFixed(0)}% confidence</span>
                           ) : null}
                           {s.reviewed_manually ? (
@@ -193,10 +205,29 @@ export default function StudentCourseAttendancePage() {
                               Marked by your teacher
                             </span>
                           ) : null}
-                          {!s.has_record ? <span>Not recognized in the class photo</span> : null}
+                          {!s.is_present && !s.has_record ? (
+                            <span>Not recognized in the class photo</span>
+                          ) : null}
+                          {!s.is_present && s.review_status === "pending" ? (
+                            <span>Review in progress…</span>
+                          ) : null}
+                          {!s.is_present && s.review_status === "not_recognized" ? (
+                            <span>Review didn&apos;t confirm your face</span>
+                          ) : null}
                         </div>
                       </div>
-                      <div className="shrink-0">
+                      <div className="flex shrink-0 items-center gap-2">
+                        {!s.is_present && s.review_eligible ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setReviewSession(s)}
+                          >
+                            <ScanFace className="h-3.5 w-3.5" />
+                            Request review
+                          </Button>
+                        ) : null}
                         {s.is_present ? (
                           <Badge variant="success">
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -217,6 +248,18 @@ export default function StudentCourseAttendancePage() {
           </>
         ) : null}
       </div>
+
+      {reviewSession ? (
+        <StudentReviewModal
+          key={reviewSession.session_id}
+          sessionId={reviewSession.session_id}
+          sessionNumber={reviewSession.session_number}
+          onClose={() => setReviewSession(null)}
+          onResolved={() => {
+            void load().catch((error) => toast.error(getErrorMessage(error)));
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

@@ -5,14 +5,21 @@ from typing import List
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.api.deps import get_current_active_teacher
-from app.models.models import AttendanceSession, Course, SessionImage
-from app.schemas.attendance import SessionImagesOut
+from app.api.deps import get_current_active_teacher, get_current_active_user
+from app.models.models import AttendanceSession, Course, Enrollment, SessionImage
+from app.schemas.attendance import (
+    ReviewCreateIn,
+    ReviewEligibilityOut,
+    ReviewStatusOut,
+    SessionImagesOut,
+)
+from app.repositories.review_repository import ReviewRepository
 from app.services import cloudinary_service
 from pydantic import BaseModel
 from datetime import datetime
 
 from app.tasks.attendance_tasks import process_attendance_images
+from app.tasks.review_tasks import process_student_review
 
 router = APIRouter()
 
@@ -103,26 +110,8 @@ def get_session_status(session_id: int, db: Session = Depends(get_db)):
         
     return {"session_id": session.id, "status": session.status}
 
-@router.get("/session/{session_id}/images", response_model=SessionImagesOut)
-def get_session_images(
-    session_id: int,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_teacher),
-):
-    """
-    The classroom photos used for one attendance session, hosted on Cloudinary.
-
-    Returns an empty list while the upload task is still running (it starts only
-    once attendance has finished), so the client can poll or offer a refresh.
-    """
-    session = db.query(AttendanceSession).filter(AttendanceSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    course = db.query(Course).filter(Course.id == session.course_id).first()
-    if not course or course.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not allowed to view this session")
-
+def _serialize_session_images(db: Session, session_id: int) -> dict:
+    """Shared payload of a session's hosted photos (teacher + student review views)."""
     images = (
         db.query(SessionImage)
         .filter(SessionImage.session_id == session_id)
@@ -149,6 +138,131 @@ def get_session_images(
             for image in images
         ],
     }
+
+
+@router.get("/session/{session_id}/images", response_model=SessionImagesOut)
+def get_session_images(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_teacher),
+):
+    """
+    The classroom photos used for one attendance session, hosted on Cloudinary.
+
+    Returns an empty list while the upload task is still running (it starts only
+    once attendance has finished), so the client can poll or offer a refresh.
+    """
+    session = db.query(AttendanceSession).filter(AttendanceSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    course = db.query(Course).filter(Course.id == session.course_id).first()
+    if not course or course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not allowed to view this session")
+
+    return _serialize_session_images(db, session_id)
+
+
+# --- Student self-review -------------------------------------------------------
+
+# Human-readable messages for each eligibility/rejection reason.
+_REVIEW_REASON_MESSAGES = {
+    "session_not_found": "Session not found.",
+    "not_enrolled": "You are not enrolled in this course.",
+    "already_reviewed": "You have already used your review for this session.",
+    "session_not_ready": "This session is still being processed.",
+    "already_present": "You are already marked present for this session.",
+    "no_images": "There are no photos to review for this session yet.",
+    "no_reference_image": "Add a reference photo of yourself before requesting a review.",
+}
+
+
+@router.get("/session/{session_id}/review/eligibility", response_model=ReviewEligibilityOut)
+def get_review_eligibility(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user),
+):
+    """Whether the current student may request a review of this session."""
+    result = ReviewRepository(db).eligibility(session_id, current_user.id)
+    return {"eligible": result.eligible, "reason": result.reason, "review": result.review}
+
+
+@router.get("/session/{session_id}/review/images", response_model=SessionImagesOut)
+def get_review_images(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user),
+):
+    """
+    The session's photos for a student to mark their face in. Only available to an
+    enrolled student who is eligible to review (or has already submitted one), so
+    present students can't browse classroom photos.
+    """
+    repo = ReviewRepository(db)
+    result = repo.eligibility(session_id, current_user.id)
+    if not (result.eligible or result.review is not None):
+        raise HTTPException(
+            status_code=403,
+            detail=_REVIEW_REASON_MESSAGES.get(result.reason, "You cannot review this session."),
+        )
+    return _serialize_session_images(db, session_id)
+
+
+@router.post("/session/{session_id}/review", response_model=ReviewStatusOut)
+def submit_review(
+    session_id: int,
+    payload: ReviewCreateIn,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user),
+):
+    """
+    Submit a review: the student's marked face region in one session photo. Creates
+    the (one-per-session) review, dispatches evaluation to the worker, and returns
+    the pending review to poll.
+    """
+    repo = ReviewRepository(db)
+    result = repo.eligibility(session_id, current_user.id)
+    if not result.eligible:
+        raise HTTPException(
+            status_code=400,
+            detail=_REVIEW_REASON_MESSAGES.get(result.reason, "You cannot review this session."),
+        )
+
+    # The marked image must belong to this session.
+    image = (
+        db.query(SessionImage)
+        .filter(SessionImage.id == payload.image_id, SessionImage.session_id == session_id)
+        .first()
+    )
+    if not image:
+        raise HTTPException(status_code=400, detail="Selected photo does not belong to this session.")
+
+    if payload.shape not in ("circle", "square"):
+        raise HTTPException(status_code=400, detail="Marker shape must be 'circle' or 'square'.")
+
+    review = repo.create_or_reset_pending(
+        session_id=session_id,
+        student_id=current_user.id,
+        image_id=payload.image_id,
+        region=payload.region.model_dump(),
+        shape=payload.shape,
+    )
+    process_student_review.delay(review_id=review.id)
+    return review
+
+
+@router.get("/review/{review_id}", response_model=ReviewStatusOut)
+def get_review_status(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user),
+):
+    """Poll one review's status/result. Students can only read their own reviews."""
+    review = ReviewRepository(db).get_review(review_id)
+    if not review or review.student_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Review not found")
+    return review
 
 
 @router.put("/session/{session_id}/manual-review")

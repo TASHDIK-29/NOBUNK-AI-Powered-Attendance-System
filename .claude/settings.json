@@ -24,7 +24,13 @@
       "Bash(grep -Ev \"WARNING|oneDNN|I0000|absl|deprecated|^\\\\s*$\")",
       "Bash(./venv/Scripts/python.exe -c \"from app.repositories.course_repository import CourseRepository; print\\('repo import ok'\\)\")",
       "Bash(./venv/Scripts/python.exe -c \"import app.api.v1.teacher; print\\('teacher api ok'\\)\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(./venv/Scripts/pip.exe list *)",
+      "Bash(./venv/Scripts/python.exe -c \"import requests; print\\('requests ok'\\)\")",
+      "Bash(xargs grep -H \"^revision\")",
+      "Bash(./venv/Scripts/alembic.exe current *)",
+      "Bash(echo \"=== EXIT $? ===\")",
+      "Bash(./venv/Scripts/alembic.exe upgrade *)"
     ]
   }
 }

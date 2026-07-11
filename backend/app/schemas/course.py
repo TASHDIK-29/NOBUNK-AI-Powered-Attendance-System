@@ -91,9 +91,15 @@ class StudentSessionAttendanceOut(BaseModel):
     is_present: bool
     confidence: Optional[float] = None
     reviewed_manually: bool
+    # True when the student was marked present via the self-review flow.
+    via_review: bool = False
     # False when no attendance record exists for this student in the session
     # (i.e. never detected/marked) — still counts as absent for the score.
     has_record: bool
+    # Whether the student may request a self-review for this (absent) session.
+    review_eligible: bool = False
+    # Status of an existing review, if any: pending | recognized | not_recognized | failed.
+    review_status: Optional[str] = None
 
     class Config:
         from_attributes = True

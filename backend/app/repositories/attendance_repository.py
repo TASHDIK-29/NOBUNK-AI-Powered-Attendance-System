@@ -65,3 +65,31 @@ class AttendanceRepository:
         self.db.commit()
         return True
 
+    def mark_present_via_review(self, session_id: int, student_id: int, distance: float):
+        """
+        Mark a student present as the result of an approved self-review, tagging
+        the record with via_review so the UI can attribute it correctly. Upserts
+        the record (a review only happens for an absent student, but be safe).
+        """
+        confidence = max(0.0, 1 - (distance / 2.0))
+        record = self.db.query(AttendanceRecord).filter(
+            AttendanceRecord.session_id == session_id,
+            AttendanceRecord.student_id == student_id,
+        ).first()
+
+        if record:
+            record.is_present = True
+            record.confidence = confidence
+            record.via_review = True
+        else:
+            record = AttendanceRecord(
+                session_id=session_id,
+                student_id=student_id,
+                is_present=True,
+                confidence=confidence,
+                via_review=True,
+            )
+            self.db.add(record)
+        self.db.commit()
+        return record
+
