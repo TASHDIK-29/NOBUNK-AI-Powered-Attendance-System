@@ -8,12 +8,12 @@ import {
   Button,
   ButtonLink,
   Field,
-  FileInput,
   Panel,
   PageShell,
   Select,
   useToast,
 } from "@/components/ui";
+import { ImagePicker } from "@/components/image-picker";
 
 const PROFILE_TYPES = [
   { value: "default", label: "Default" },
@@ -28,13 +28,14 @@ type SkippedFile = { filename: string; reason: string };
 export default function StudentReferencePage() {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [pickerKey, setPickerKey] = useState(0);
   const [profileType, setProfileType] = useState("default");
   const [skipped, setSkipped] = useState<SkippedFile[]>([]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!files || files.length === 0) {
+    if (files.length === 0) {
       toast.error("Please choose one or more clear photos of yourself.");
       return;
     }
@@ -44,7 +45,7 @@ export default function StudentReferencePage() {
 
     try {
       const formData = new FormData();
-      Array.from(files).forEach((file) => formData.append("files", file));
+      files.forEach((file) => formData.append("files", file));
       formData.append("profile_type", profileType);
 
       const response = await axios.post("/api/v1/students/reference-images", formData, {
@@ -65,15 +66,14 @@ export default function StudentReferencePage() {
       } else {
         toast.success(message);
       }
-      setFiles(null);
+      setFiles([]);
+      setPickerKey((k) => k + 1);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
-
-  const fileCount = files?.length ?? 0;
 
   return (
     <PageShell
@@ -108,19 +108,9 @@ export default function StudentReferencePage() {
 
             <Field
               label="Your photos"
-              hint="Each photo should clearly show just your face."
+              hint="Browse your gallery or take photos with your camera. Each photo should clearly show just your face."
             >
-              <FileInput
-                multiple
-                accept="image/*"
-                onChange={(e) => setFiles(e.target.files)}
-              />
-              {fileCount > 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{fileCount}</span> file
-                  {fileCount === 1 ? "" : "s"} selected
-                </p>
-              ) : null}
+              <ImagePicker key={pickerKey} onChange={setFiles} defaultFacingMode="user" />
             </Field>
 
             {skipped.length > 0 ? (

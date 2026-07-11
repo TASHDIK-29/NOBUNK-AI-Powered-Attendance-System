@@ -23,7 +23,6 @@ import {
   ButtonLink,
   EmptyState,
   Field,
-  FileInput,
   Input,
   Modal,
   Panel,
@@ -33,6 +32,7 @@ import {
   useConfirm,
   useToast,
 } from "@/components/ui";
+import { ImagePicker } from "@/components/image-picker";
 import { SessionsDrawer } from "@/components/sessions-drawer";
 import { StudentAttendanceModal } from "@/components/student-attendance-modal";
 import { cn } from "@/lib/cn";
@@ -103,7 +103,8 @@ export default function TeacherCourseDetailPage() {
   const [overview, setOverview] = useState<CourseOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [pickerKey, setPickerKey] = useState(0);
   const [sessionDate, setSessionDate] = useState(todayLocalISO());
   const [pollingSessionId, setPollingSessionId] = useState<number | null>(null);
 
@@ -184,7 +185,7 @@ export default function TeacherCourseDetailPage() {
       toast.error("Choose the attendance date.");
       return;
     }
-    if (!files || files.length === 0) {
+    if (files.length === 0) {
       toast.error("Choose at least one classroom image.");
       return;
     }
@@ -195,7 +196,7 @@ export default function TeacherCourseDetailPage() {
       const formData = new FormData();
       formData.append("course_id", String(courseId));
       formData.append("session_date", sessionDate);
-      Array.from(files).forEach((file) => formData.append("files", file));
+      files.forEach((file) => formData.append("files", file));
 
       const res = await axios.post("/api/v1/attendance/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -204,7 +205,8 @@ export default function TeacherCourseDetailPage() {
       toast.info("Marking attendance now — scores will update automatically when it's done.");
       setPollingSessionId(res.data.id);
       setSessionDate(todayLocalISO());
-      setFiles(null);
+      setFiles([]);
+      setPickerKey((k) => k + 1);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -415,8 +417,11 @@ export default function TeacherCourseDetailPage() {
                 required
               />
             </Field>
-            <Field label="Class photos" hint="Use clear photos with visible faces for the best results.">
-              <FileInput multiple accept="image/*" onChange={(e) => setFiles(e.target.files)} />
+            <Field
+              label="Class photos"
+              hint="Browse your gallery or take photos with your camera — clear, visible faces work best."
+            >
+              <ImagePicker key={pickerKey} onChange={setFiles} defaultFacingMode="environment" />
             </Field>
             <Button type="submit" loading={uploading}>
               {!uploading && <UploadCloud className="h-4 w-4" />}
@@ -488,7 +493,7 @@ export default function TeacherCourseDetailPage() {
                   key={student.user_id}
                   className="rounded-xl border border-border bg-surface-muted/40 p-4"
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar name={student.full_name} size="sm" />
                       <div className="min-w-0">
@@ -496,7 +501,7 @@ export default function TeacherCourseDetailPage() {
                         <div className="truncate text-xs text-muted-foreground">{student.email}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                       <Badge variant={scoreVariant(student.attendance_score)}>
                         {student.attendance_score.toFixed(1)}%
                       </Badge>

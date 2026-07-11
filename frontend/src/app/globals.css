@@ -97,12 +97,28 @@
     border-color: rgb(var(--border));
   }
 
+  html,
+  body {
+    max-width: 100%;
+  }
+
   body {
     background-color: rgb(var(--background));
     color: rgb(var(--foreground));
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Safety net so a stray wide child never forces a horizontal scrollbar on a
+       phone. `clip` (not hidden/auto) avoids making body a scroll container, so
+       the sticky navbar keeps working. */
+    overflow-x: clip;
+  }
+
+  /* Media never overflows its column on small screens. */
+  img,
+  video,
+  canvas {
+    max-width: 100%;
   }
 
   /* Consistent, themable focus ring for keyboard users. */

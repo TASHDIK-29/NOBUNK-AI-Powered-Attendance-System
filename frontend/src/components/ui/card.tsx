@@ -42,7 +42,7 @@ export function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <Card className={cn('flex flex-col p-6', className)}>
+    <Card className={cn('flex flex-col p-5 sm:p-6', className)}>
       {title || action ? (
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">

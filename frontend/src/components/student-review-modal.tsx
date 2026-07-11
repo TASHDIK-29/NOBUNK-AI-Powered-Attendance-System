@@ -120,6 +120,13 @@ export function StudentReviewModal({
     }
   };
 
+  // Closing after a decision (via X, backdrop, or Done) must refresh the parent
+  // so the session row reflects the outcome without a manual page reload.
+  const handleClose = useCallback(() => {
+    if (phase === "recognized" || phase === "not_recognized") onResolved();
+    onClose();
+  }, [phase, onResolved, onClose]);
+
   const selectedImage = images.find((img) => img.id === selectedId) ?? null;
   const title = sessionNumber ? `Review session ${sessionNumber}` : "Request a review";
 
@@ -253,15 +260,12 @@ export function StudentReviewModal({
       );
     }
     if (phase === "recognized" || phase === "not_recognized") {
+      // handleClose refreshes the parent on either terminal outcome: a pass flips
+      // the record to present, a rejection consumes the one attempt — both change
+      // what the session row shows (Reviewed badge + hidden button).
       return (
         <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() => {
-              if (phase === "recognized") onResolved();
-              onClose();
-            }}
-          >
+          <Button type="button" onClick={handleClose}>
             Done
           </Button>
         </div>
@@ -285,7 +289,7 @@ export function StudentReviewModal({
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={handleClose}
       title={title}
       description="Mark your face in a class photo and we'll re-check your attendance automatically."
       icon={<ScanFace className="h-5 w-5" />}

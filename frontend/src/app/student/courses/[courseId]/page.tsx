@@ -7,10 +7,9 @@ import {
   CheckCircle2,
   ClipboardList,
   Percent,
-  ShieldCheck,
+  ScanFace,
   XCircle,
 } from "lucide-react";
-import { ScanFace } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
@@ -22,7 +21,6 @@ import {
   PageShell,
   Skeleton,
   Stat,
-  StatusBadge,
   useToast,
 } from "@/components/ui";
 import { StudentReviewModal } from "@/components/student-review-modal";
@@ -184,36 +182,16 @@ export default function StudentCourseAttendancePage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">Session {s.session_number}</span>
-                          <StatusBadge status={s.session_status} />
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1">
-                            <CalendarDays className="h-3.5 w-3.5" />
-                            {new Date(s.date).toLocaleString()}
-                          </span>
-                          {s.is_present && s.via_review ? (
-                            <span className="inline-flex items-center gap-1">
+                          {s.review_status === "recognized" || s.review_status === "not_recognized" ? (
+                            <Badge variant="primary">
                               <ScanFace className="h-3.5 w-3.5" />
-                              Marked present via your review
-                            </span>
-                          ) : s.is_present && s.confidence != null && !s.reviewed_manually ? (
-                            <span>Recognized with {(s.confidence * 100).toFixed(0)}% confidence</span>
+                              Reviewed
+                            </Badge>
                           ) : null}
-                          {s.reviewed_manually ? (
-                            <span className="inline-flex items-center gap-1">
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                              Marked by your teacher
-                            </span>
-                          ) : null}
-                          {!s.is_present && !s.has_record ? (
-                            <span>Not recognized in the class photo</span>
-                          ) : null}
-                          {!s.is_present && s.review_status === "pending" ? (
-                            <span>Review in progress…</span>
-                          ) : null}
-                          {!s.is_present && s.review_status === "not_recognized" ? (
-                            <span>Review didn&apos;t confirm your face</span>
-                          ) : null}
+                        </div>
+                        <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {new Date(s.date).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">

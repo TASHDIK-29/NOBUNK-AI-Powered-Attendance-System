@@ -151,7 +151,7 @@ export function StudentAttendanceModal({
               return (
                 <div
                   key={session.session_id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted/40 p-3.5"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted/40 p-3.5"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

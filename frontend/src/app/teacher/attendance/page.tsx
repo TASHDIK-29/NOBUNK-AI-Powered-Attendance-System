@@ -9,13 +9,13 @@ import {
   ButtonLink,
   EmptyState,
   Field,
-  FileInput,
   Input,
   Panel,
   PageShell,
   Select,
   useToast,
 } from "@/components/ui";
+import { ImagePicker } from "@/components/image-picker";
 
 type TeacherCourse = {
   id: number;
@@ -36,7 +36,8 @@ export default function TeacherAttendancePage() {
   const [loading, setLoading] = useState(false);
   const [courseId, setCourseId] = useState("");
   const [sessionDate, setSessionDate] = useState(todayLocalISO());
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [pickerKey, setPickerKey] = useState(0);
   const [courses, setCourses] = useState<TeacherCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
 
@@ -63,7 +64,7 @@ export default function TeacherAttendancePage() {
       toast.error("Please choose the attendance date.");
       return;
     }
-    if (!files || files.length === 0) {
+    if (files.length === 0) {
       toast.error("Please choose at least one class photo.");
       return;
     }
@@ -74,7 +75,7 @@ export default function TeacherAttendancePage() {
       const formData = new FormData();
       formData.append("course_id", courseId);
       formData.append("session_date", sessionDate);
-      Array.from(files).forEach((file) => formData.append("files", file));
+      files.forEach((file) => formData.append("files", file));
 
       await axios.post("/api/v1/attendance/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -85,15 +86,14 @@ export default function TeacherAttendancePage() {
       );
       setCourseId("");
       setSessionDate(todayLocalISO());
-      setFiles(null);
+      setFiles([]);
+      setPickerKey((k) => k + 1);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
-
-  const fileCount = files?.length ?? 0;
 
   return (
     <PageShell
@@ -154,15 +154,13 @@ export default function TeacherAttendancePage() {
 
               <Field
                 label="Class photos"
-                hint="You can select several photos at once so every row is covered."
+                hint="Browse your gallery or take photos with your camera — capture a few angles so every row is covered."
               >
-                <FileInput multiple accept="image/*" onChange={(e) => setFiles(e.target.files)} />
-                {fileCount > 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{fileCount}</span> photo
-                    {fileCount === 1 ? "" : "s"} selected
-                  </p>
-                ) : null}
+                <ImagePicker
+                  key={pickerKey}
+                  onChange={setFiles}
+                  defaultFacingMode="environment"
+                />
               </Field>
 
               <Button type="submit" block loading={loading}>

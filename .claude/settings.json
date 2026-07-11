@@ -30,7 +30,9 @@
       "Bash(xargs grep -H \"^revision\")",
       "Bash(./venv/Scripts/alembic.exe current *)",
       "Bash(echo \"=== EXIT $? ===\")",
-      "Bash(./venv/Scripts/alembic.exe upgrade *)"
+      "Bash(./venv/Scripts/alembic.exe upgrade *)",
+      "Bash(cd ../frontend && grep -n \"StatusBadge\\\\|ShieldCheck\" \"src/app/student/courses/[courseId]/page.tsx\")",
+      "Read(//d/Projects/**)"
     ]
   }
 }
