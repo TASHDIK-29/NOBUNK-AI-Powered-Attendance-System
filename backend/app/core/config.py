@@ -70,6 +70,17 @@ class Settings(BaseSettings):
     # This is the main precision guard once far-face thresholds are relaxed.
     FACE_MATCH_MARGIN: float = 0.08
 
+    # --- Student reference photos & self-check --------------------------------
+    # Max reference photos a student may store. A new upload REPLACES the whole
+    # set rather than adding to it, so this caps the stored embeddings too.
+    MAX_REFERENCE_IMAGES: int = 3
+    # Self-check ("is my current look OK for attendance?"): the student uploads a
+    # current photo and we compare it 1:1 against their stored reference
+    # embeddings (nearest match). <= GOOD: strong match. <= UPDATE: still fine.
+    # > UPDATE: appearance has drifted enough that refreshing photos is advised.
+    FACE_SELFCHECK_GOOD_DISTANCE: float = 0.40
+    FACE_SELFCHECK_UPDATE_DISTANCE: float = 0.58
+
     # --- Student self-review evaluation ---------------------------------------
     # When a student is marked absent they may request ONE automated review: they
     # mark their own face in a session photo and the system re-checks that crop.

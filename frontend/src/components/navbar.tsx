@@ -74,9 +74,11 @@ export default function Navbar() {
               priority
             />
           </span>
-          <span className="hidden flex-col leading-tight sm:flex">
+          <span className="flex flex-col leading-tight">
             <span className="text-xl font-bold tracking-tight">NoBunk</span>
-            <span className="text-[11px] text-muted-foreground">AI attendance system</span>
+            <span className="hidden text-[11px] text-muted-foreground sm:block">
+              AI attendance system
+            </span>
           </span>
         </Link>
 

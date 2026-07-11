@@ -21,10 +21,13 @@ export function CameraCaptureModal({
   onAdd,
   onClose,
   defaultFacingMode = "environment",
+  maxCaptures,
 }: {
   onAdd: (files: File[]) => void;
   onClose: () => void;
   defaultFacingMode?: "user" | "environment";
+  /** Stop allowing new shots once this many have been taken. */
+  maxCaptures?: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -111,8 +114,18 @@ export function CameraCaptureModal({
     if (!blob) return;
 
     const file = new File([blob], `photo-${uid()}.jpg`, { type: "image/jpeg" });
-    setCaptures((prev) => [...prev, { id: uid(), url: URL.createObjectURL(file), file }]);
-  }, []);
+    // The shutter always works: if we're at the cap, drop the oldest shot so the
+    // newest is kept (so a 1-photo limit just means "retake"). Never dead-ends.
+    setCaptures((prev) => {
+      const next = [...prev, { id: uid(), url: URL.createObjectURL(file), file }];
+      if (maxCaptures != null && next.length > maxCaptures) {
+        const overflow = next.slice(0, next.length - maxCaptures);
+        overflow.forEach((c) => URL.revokeObjectURL(c.url));
+        return next.slice(next.length - maxCaptures);
+      }
+      return next;
+    });
+  }, [maxCaptures]);
 
   const removeCapture = (id: string) => {
     setCaptures((prev) => {
@@ -127,6 +140,9 @@ export function CameraCaptureModal({
     onClose();
   };
 
+  // A 1-shot limit is a "retake" (see capture); a larger cap keeps the newest N.
+  const singleShot = maxCaptures === 1;
+
   return (
     <Modal
       open
@@ -138,7 +154,11 @@ export function CameraCaptureModal({
       footer={
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm text-muted-foreground">
-            {captures.length} photo{captures.length === 1 ? "" : "s"} taken
+            {singleShot
+              ? captures.length > 0
+                ? "Photo ready — retake or add it"
+                : "Take your photo"
+              : `${captures.length} photo${captures.length === 1 ? "" : "s"} taken`}
           </span>
           <div className="flex items-center gap-2">
             <Button type="button" variant="secondary" onClick={onClose}>

@@ -24,14 +24,20 @@ export function ImagePicker({
   onChange,
   defaultFacingMode = "environment",
   galleryLabel = "Browse Gallery",
+  maxImages,
 }: {
   onChange: (files: File[]) => void;
   defaultFacingMode?: "user" | "environment";
   galleryLabel?: string;
+  /** Cap on how many photos may be selected; extras are ignored. */
+  maxImages?: number;
 }) {
   const [items, setItems] = useState<Item[]>([]);
   const [capturing, setCapturing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const atCapacity = maxImages != null && items.length >= maxImages;
+  const remaining = maxImages != null ? Math.max(0, maxImages - items.length) : undefined;
 
   // Report the current file list to the parent whenever it changes.
   useEffect(() => {
@@ -48,12 +54,19 @@ export function ImagePicker({
     return () => itemsRef.current.forEach((i) => URL.revokeObjectURL(i.url));
   }, []);
 
-  const addFiles = useCallback((files: File[]) => {
-    const images = files.filter((f) => f.type.startsWith("image/"));
-    if (images.length === 0) return;
-    const added = images.map((file) => ({ id: uid(), file, url: URL.createObjectURL(file) }));
-    setItems((prev) => [...prev, ...added]);
-  }, []);
+  const addFiles = useCallback(
+    (files: File[]) => {
+      const images = files.filter((f) => f.type.startsWith("image/"));
+      // Cap against the count already committed (itemsRef mirrors current items).
+      const room =
+        maxImages == null ? images.length : Math.max(0, maxImages - itemsRef.current.length);
+      const accepted = images.slice(0, room);
+      if (accepted.length === 0) return;
+      const added = accepted.map((file) => ({ id: uid(), file, url: URL.createObjectURL(file) }));
+      setItems((prev) => [...prev, ...added]);
+    },
+    [maxImages]
+  );
 
   const removeItem = useCallback((id: string) => {
     setItems((prev) => {
@@ -81,15 +94,33 @@ export function ImagePicker({
       />
 
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={atCapacity}
+          onClick={() => inputRef.current?.click()}
+        >
           <ImagePlus className="h-4 w-4" />
           {galleryLabel}
         </Button>
-        <Button type="button" variant="secondary" onClick={() => setCapturing(true)}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={atCapacity}
+          onClick={() => setCapturing(true)}
+        >
           <Camera className="h-4 w-4" />
           Take Photos
         </Button>
       </div>
+
+      {maxImages != null ? (
+        <p className="text-xs text-muted-foreground">
+          {atCapacity
+            ? `Limit reached — up to ${maxImages} photo${maxImages === 1 ? "" : "s"}. Remove one to change it.`
+            : `Up to ${maxImages} photo${maxImages === 1 ? "" : "s"}.`}
+        </p>
+      ) : null}
 
       {items.length > 0 ? (
         <>
@@ -126,6 +157,7 @@ export function ImagePicker({
       {capturing ? (
         <CameraCaptureModal
           defaultFacingMode={defaultFacingMode}
+          maxCaptures={remaining}
           onAdd={addFiles}
           onClose={() => setCapturing(false)}
         />
