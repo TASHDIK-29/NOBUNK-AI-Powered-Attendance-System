@@ -297,11 +297,11 @@ export default function TeacherCourseDetailPage() {
     try {
       // Use fetch (not axios) for the binary download: axios' XHR adapter reads
       // responseText internally, which throws when responseType is "blob".
+      // credentials:"include" sends the session cookie; it's a GET, so no CSRF.
       const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const res = await fetch(
         `${base}/api/v1/teacher/courses/${courseId}/attendance/pdf`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+        { credentials: "include" }
       );
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);

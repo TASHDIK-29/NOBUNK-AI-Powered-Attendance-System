@@ -12,16 +12,14 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
-  // False until we've read (or confirmed the absence of) a persisted session.
+  // False until we've confirmed the session with the server (via /auth/me).
   // Route guards wait for this so a refresh doesn't bounce a logged-in user.
   initialized: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
-  token: null,
   isAuthenticated: false,
   initialized: false,
 };
@@ -30,47 +28,22 @@ export const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (
-      state,
-      action: PayloadAction<{ user: User; token: string }>
-    ) => {
-      state.user = action.payload.user;
-      state.token = action.payload.token;
+    // Called after a successful login or when /auth/me confirms a live session.
+    // The session itself lives in an HttpOnly cookie — never in Redux/storage.
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
       state.isAuthenticated = true;
       state.initialized = true;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('token', action.payload.token);
-        localStorage.setItem('user', JSON.stringify(action.payload.user));
-      }
     },
-    logout: (state) => {
+    // Called on logout or when the server reports no valid session.
+    clearUser: (state) => {
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
       state.initialized = true;
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
     },
-    loadUserFromStorage: (state) => {
-      if (typeof window !== 'undefined') {
-        const storedToken = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
-        if (storedToken) {
-          state.token = storedToken;
-          state.isAuthenticated = true;
-        }
-        if (storedUser) {
-          state.user = JSON.parse(storedUser);
-          state.isAuthenticated = true;
-        }
-      }
-      state.initialized = true;
-    }
   },
 });
 
-export const { setCredentials, logout, loadUserFromStorage } = authSlice.actions;
+export const { setUser, clearUser } = authSlice.actions;
 
 export default authSlice.reducer;

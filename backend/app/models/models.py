@@ -25,6 +25,30 @@ class User(Base):
     enrollments = relationship("Enrollment", back_populates="student")
     embeddings = relationship("StudentEmbedding", back_populates="student", cascade="all, delete-orphan")
 
+class UserSession(Base):
+    """A server-side authentication session.
+
+    The cookie only ever carries a random, opaque session token. We store the
+    SHA-256 of that token as the primary key (`id`), so a leaked database dump
+    can't be replayed as live sessions. Idle- and absolute-expiry are enforced
+    on every request in `app.core.sessions`.
+    """
+
+    __tablename__ = "sessions"
+
+    # SHA-256 hex of the raw session token that lives in the cookie.
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    # Per-session CSRF token, compared against the X-CSRF-Token request header.
+    csrf_token = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_activity_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Absolute expiry — the session is invalid past this instant regardless of activity.
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    user = relationship("User")
+
+
 class Course(Base):
     __tablename__ = "courses"
 

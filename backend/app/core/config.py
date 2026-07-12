@@ -7,12 +7,35 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
-    
-    # Security
+
+    # "development" (localhost, http) or "production" (HTTPS). Controls whether
+    # auth cookies are marked Secure and whether strict security headers apply.
+    ENVIRONMENT: str = "development"
+
+    # Security — kept for signing/misc use; auth no longer uses JWTs.
     SECRET_KEY: str = "REPLACE_THIS_WITH_A_SUPER_SECRET_KEY_IN_PRODUCTION"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
-    ALGORITHM: str = "HS256"
-    
+
+    # --- Server-side session auth --------------------------------------------
+    # A random, opaque session id lives in an HttpOnly cookie; the CSRF token
+    # lives in a companion JS-readable cookie so the SPA can echo it back in a
+    # header. No user data or tokens are ever stored in the cookies themselves.
+    SESSION_COOKIE_NAME: str = "session_id"
+    CSRF_COOKIE_NAME: str = "csrf_token"
+    CSRF_HEADER_NAME: str = "X-CSRF-Token"
+    # Idle timeout: a session is rejected if untouched for this long (30–60 min).
+    SESSION_IDLE_TIMEOUT_MINUTES: int = 45
+    # Absolute lifetime: a session cannot outlive this even if kept active.
+    SESSION_ABSOLUTE_TIMEOUT_DAYS: int = 7
+
+    # --- Login brute-force protection ----------------------------------------
+    LOGIN_MAX_ATTEMPTS: int = 5        # failed attempts before a temporary lock
+    LOGIN_LOCKOUT_MINUTES: int = 10    # how long the lock lasts
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() == "production"
+
+
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost:5435/attendancedb"
     

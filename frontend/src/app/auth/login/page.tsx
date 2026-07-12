@@ -9,7 +9,7 @@ import { getErrorMessage } from "@/lib/get-error-message";
 import { Button, Field, Input, useToast } from "@/components/ui";
 import { AuthLayout } from "@/components/auth-layout";
 import { useAppDispatch } from "@/store/hooks";
-import { setCredentials } from "@/store/slices/authSlice";
+import { setUser } from "@/store/slices/authSlice";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,16 +27,13 @@ export default function LoginPage() {
       formData.append("username", form.email);
       formData.append("password", form.password);
 
-      const tokenResponse = await axios.post("/api/v1/auth/login", formData, {
+      // On success the server sets the HttpOnly session + CSRF cookies and
+      // returns the authenticated user. No token is handled client-side.
+      const response = await axios.post("/api/v1/auth/login", formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
-      const token = tokenResponse.data.access_token as string;
-      const userResponse = await axios.get("/api/v1/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      dispatch(setCredentials({ user: userResponse.data, token }));
+      dispatch(setUser(response.data));
       router.replace("/dashboard");
     } catch (error) {
       toast.error(getErrorMessage(error));

@@ -16,7 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { logout } from '@/store/slices/authSlice';
+import { clearUser } from '@/store/slices/authSlice';
+import axios from '@/lib/axios';
 import { Avatar, Button, ButtonLink } from '@/components/ui';
 import { ThemeToggle } from '@/components/theme-toggle';
 import NotificationBell from '@/components/notification-bell';
@@ -52,9 +53,16 @@ export default function Navbar() {
   const links = useNavLinks(auth.user?.role);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-  // Logging out always returns the user to the public home page.
-  const handleLogout = () => {
-    dispatch(logout());
+  // Logging out destroys the server session (so the cookie can't be reused),
+  // then clears client state and returns to the public home page. We clear
+  // locally even if the request fails, so the UI never gets stuck logged in.
+  const handleLogout = async () => {
+    try {
+      await axios.post('/api/v1/auth/logout');
+    } catch {
+      // ignore — clear the client either way
+    }
+    dispatch(clearUser());
     setMobileOpen(false);
     router.replace('/');
   };

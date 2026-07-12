@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
+from app.core.middleware import CSRFMiddleware, SecurityHeadersMiddleware
 
 settings = get_settings()
 
@@ -14,11 +15,19 @@ def create_app() -> FastAPI:
         openapi_url=f"{settings.API_V1_STR}/openapi.json"
     )
 
-    # Set all CORS enabled origins
+    # Middleware runs in reverse order of registration for the request path, so
+    # the last one added is the outermost. Security headers wrap everything;
+    # CSRF is checked before requests reach the routes; CORS is outermost so
+    # even rejected requests get the right CORS headers.
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(CSRFMiddleware)
+
+    # Cookies are cross-origin (SPA on :3000 → API on :8000), so credentials
+    # must be allowed and the origin must be explicit (never "*" with creds).
     app.add_middleware(
         CORSMiddleware,
         allow_origins=CORS_ORIGINS,
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
         expose_headers=["Content-Disposition"],

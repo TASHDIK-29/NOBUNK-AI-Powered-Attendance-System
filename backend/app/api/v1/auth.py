@@ -1,17 +1,26 @@
-from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from app.core import security
+from app.core import security, sessions, rate_limit
 from app.core.config import get_settings
+from app.core.cookies import set_auth_cookies, clear_auth_cookies
 from app.api.deps import get_current_active_user
 from app.core.database import get_db
 from app.models.models import User
-from app.schemas.user import UserCreate, UserOut, Token
+from app.schemas.user import UserCreate, UserOut
 
 settings = get_settings()
 router = APIRouter()
+
+# One generic message for every login failure so we never reveal whether an
+# email is registered or whether it was the password that was wrong.
+_GENERIC_LOGIN_ERROR = "Incorrect email or password"
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
 
 @router.post("/register", response_model=UserOut)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
@@ -24,7 +33,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
             status_code=400,
             detail="The user with this email already exists in the system.",
         )
-    
+
     # Check if student ID already exists
     if user_in.student_id:
         existing_student = db.query(User).filter(User.student_id == user_in.student_id).first()
@@ -45,25 +54,58 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return db_user
 
-@router.post("/login", response_model=Token)
-def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+
+@router.post("/login", response_model=UserOut)
+def login(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
     """
-    OAuth2 compatible token login, get an access token for future requests
+    Authenticate with email + password and open a server-side session.
+
+    On success a session row is created and two cookies are set: an HttpOnly
+    session cookie (the opaque token) and a JS-readable CSRF cookie. No token is
+    ever returned in the response body.
     """
-    user = db.query(User).filter(User.email == form_data.username).first()
+    ip = _client_ip(request)
+    email = form_data.username
+
+    # Brute-force guard: reject early (before hitting the DB / hashing) once the
+    # identity is locked out.
+    if rate_limit.is_locked(email, ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed attempts. Please try again later.",
+        )
+
+    user = db.query(User).filter(User.email == email).first()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-        
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = security.create_access_token(
-        user.id, expires_delta=access_token_expires
-    )
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-    }
+        rate_limit.register_failure(email, ip)
+        # Same error whether the user is missing or the password is wrong.
+        raise HTTPException(status_code=400, detail=_GENERIC_LOGIN_ERROR)
+    if not user.is_active:
+        rate_limit.register_failure(email, ip)
+        raise HTTPException(status_code=400, detail=_GENERIC_LOGIN_ERROR)
+
+    rate_limit.reset(email, ip)
+
+    raw_token, csrf_token = sessions.create_session(db, user.id)
+    set_auth_cookies(response, raw_token, csrf_token)
+    return user
+
+
+@router.post("/logout")
+def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+    """
+    Destroy the current server session and clear the auth cookies. Idempotent —
+    safe to call even without a valid session.
+    """
+    raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    sessions.destroy_session(db, raw_token)
+    clear_auth_cookies(response)
+    return {"message": "Logged out"}
 
 
 @router.get("/me", response_model=UserOut)
