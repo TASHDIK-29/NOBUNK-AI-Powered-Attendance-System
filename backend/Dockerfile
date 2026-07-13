@@ -1,21 +1,32 @@
-# Backend image: FastAPI web server AND the Celery worker run from this same
-# image (they only differ in the start command — see render.yaml). Python 3.13
-# matches the version the requirements were pinned against.
+# Backend image. Serves TWO deployment targets from ONE Dockerfile:
+#
+#  * Hugging Face Spaces (free) — runs the whole backend in this single
+#    container: Redis + Celery worker + FastAPI, started by `start-all.sh`
+#    (the default CMD below). This is the free-tier setup.
+#
+#  * Render (paid) — the web and worker services each OVERRIDE the CMD via
+#    render.yaml, and use a separate managed Redis, so the bundled redis-server
+#    simply stays idle there.
+#
+# Python 3.13 matches the version the requirements were pinned against.
 FROM python:3.13-slim
 
-# System libraries required by OpenCV / DeepFace at runtime. Without libGL and
-# libglib, `import cv2` crashes with "libGL.so.1: cannot open shared object".
+# System libraries:
+#  * libgl1 / libglib2.0-0 — required by OpenCV/DeepFace ("import cv2" crashes
+#    with "libGL.so.1: cannot open shared object" without them).
+#  * redis-server — the Celery broker/result backend, run inside the container
+#    on Hugging Face (a free managed Redis can't handle Celery's polling).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 \
         libglib2.0-0 \
+        redis-server \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    # DeepFace caches its model weights (ArcFace, RetinaFace, MTCNN) here. On an
-    # ephemeral host they re-download on each cold start unless pre-baked below.
+    # DeepFace caches its model weights (ArcFace, RetinaFace, MTCNN) here.
     DEEPFACE_HOME=/app/.deepface
 
 WORKDIR /app
@@ -25,14 +36,17 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-# OPTIONAL but recommended: pre-download the face model weights at build time so
-# the first real request doesn't stall (and doesn't time out) fetching ~1GB of
-# weights. Uncomment to bake them into the image (larger image, slower build).
-# RUN python -c "from deepface import DeepFace; \
-#     DeepFace.build_model('ArcFace'); \
-#     from deepface.modules import modeling; modeling.build_model('face_detector', 'retinaface')"
+# Hugging Face Spaces run the container as uid 1000; owning /app lets the app
+# write model weights and transient upload files without permission errors.
+RUN useradd -m -u 1000 appuser \
+    && mkdir -p /app/.deepface /app/uploads \
+    && chown -R appuser:appuser /app
+USER appuser
 
-# $PORT is provided by the host at runtime; the start command is set per service
-# in render.yaml, so no CMD is strictly required here. This is a sane default
-# for running the web server standalone.
-CMD ["sh", "-c", "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
+# HF Spaces expect the app on the port declared in README.md (7860). On Render,
+# $PORT is injected instead, so honour it when present.
+EXPOSE 7860
+
+# Default (Hugging Face): bring up Redis + Celery + the web server together.
+# Render overrides this per-service in render.yaml.
+CMD ["bash", "start-all.sh"]
