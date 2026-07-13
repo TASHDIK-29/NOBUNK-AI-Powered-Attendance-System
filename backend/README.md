@@ -1,38 +1,31 @@
----
-title: NoBunk Attendance API
-emoji: 📸
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
-short_description: Face-recognition attendance backend (FastAPI + DeepFace)
----
+# NoBunk — Backend (FastAPI)
 
-# NoBunk — Attendance API (backend)
+Face-recognition attendance backend. It runs in two modes, selected by the
+`AI_FEATURES_ENABLED` setting:
 
-FastAPI backend for the NoBunk face-recognition attendance system. On Hugging
-Face Spaces this single container runs **Redis + a Celery worker + the FastAPI
-server** together (see `start-all.sh`); Postgres (with pgvector) is hosted
-externally on Supabase.
+| Mode | `AI_FEATURES_ENABLED` | Dependencies | Face features | Where |
+|------|----------------------|--------------|---------------|-------|
+| **Full** | `true` (default) | `requirements.txt` (TensorFlow, DeepFace, OpenCV, Celery) | ✅ enabled | local dev / demo |
+| **Lite** | `false` | `requirements-lite.txt` | ⛔ endpoints return 503 | free public deploy (Render) |
 
-## Required Space secrets
+The lite build omits the ~2 GB face-recognition stack so it fits a free host.
+The face-recognition libraries are imported lazily (inside the methods that use
+them), so the app boots and serves every non-AI route without them installed.
 
-Set these in **Settings → Variables and secrets** on the Space:
+## Run locally (full AI features)
 
-| Key | Value |
-|-----|-------|
-| `ENVIRONMENT` | `production` |
-| `SECRET_KEY` | a long random string (`python -c "import secrets; print(secrets.token_urlsafe(48))"`) |
-| `CORS_ORIGINS` | your Vercel URL, e.g. `https://your-app.vercel.app` (no trailing slash) |
-| `DATABASE_URL` | Supabase connection string (Session pooler, `sslmode=require`) |
-| `REDIS_URL` | `redis://localhost:6379/0` (Redis runs inside this container) |
-| `CLOUDINARY_CLOUD_NAME` | from your Cloudinary dashboard |
-| `CLOUDINARY_API_KEY` | from your Cloudinary dashboard |
-| `CLOUDINARY_API_SECRET` | from your Cloudinary dashboard |
+```bash
+docker compose up -d          # Postgres (pgvector) + Redis
+python -m venv venv && source venv/Scripts/activate
+pip install -r requirements.txt
+cp .env.example .env          # fill in values; keep AI_FEATURES_ENABLED=true
+alembic upgrade head
+uvicorn app.main:app --reload            # API on :8000
+celery -A app.tasks.celery_app:celery_app worker --loglevel=info   # worker
+```
 
-The container applies database migrations (`alembic upgrade head`) on every
-start, which also enables the `pgvector` extension.
+## Lightweight deploy (Render free)
 
-> Note: free Spaces sleep after ~48h of inactivity and cold-start in 30–60s
-> while TensorFlow loads. Use test/dummy face data only — this is a public demo.
+Configured by [`../render.yaml`](../render.yaml): installs `requirements-lite.txt`,
+sets `AI_FEATURES_ENABLED=false`, and points `DATABASE_URL` at a free Supabase
+(pgvector) database. See the deployment walkthrough for step-by-step setup.

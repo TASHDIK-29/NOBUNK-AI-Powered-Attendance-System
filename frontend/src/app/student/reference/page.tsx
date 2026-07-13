@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
+import { useAiGuard } from "@/lib/use-ai-guard";
 import {
   Button,
   ButtonLink,
@@ -61,6 +62,7 @@ const RESULT_STYLE: Record<
 
 export default function StudentReferencePage() {
   const toast = useToast();
+  const { requireAi } = useAiGuard();
 
   const [status, setStatus] = useState<ReferenceStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -102,6 +104,7 @@ export default function StudentReferencePage() {
       toast.error("Add a current photo of yourself to check.");
       return;
     }
+    if (!requireAi()) return;
     setChecking(true);
     setResult(null);
     try {
@@ -126,6 +129,7 @@ export default function StudentReferencePage() {
       toast.error("Please choose one or more clear photos of yourself.");
       return;
     }
+    if (!requireAi()) return;
     setSaving(true);
     setSkipped([]);
     try {

@@ -47,3 +47,20 @@ def get_current_admin(current_user: User = Depends(get_current_active_user)) -> 
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
     return current_user
+
+
+def require_ai_features() -> None:
+    """Guard for endpoints that need the face-recognition stack (DeepFace/OpenCV).
+
+    The public free deployment runs a lightweight build without those heavy
+    libraries, so these endpoints return 503 there. Run the project locally
+    (AI_FEATURES_ENABLED=true) to use them.
+    """
+    if not settings.AI_FEATURES_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Face-recognition features are only available in the full local "
+                "deployment. This is the lightweight public demo."
+            ),
+        )

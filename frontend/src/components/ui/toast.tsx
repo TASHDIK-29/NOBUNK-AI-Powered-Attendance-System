@@ -12,13 +12,16 @@ import { CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import type { StatusKind } from './alert';
 
-type ToastItem = { id: number; kind: StatusKind; message: string };
+/** Optional call-to-action link rendered inside a toast (e.g. the source repo). */
+type ToastLink = { href: string; label: string };
+
+type ToastItem = { id: number; kind: StatusKind; message: string; link?: ToastLink };
 
 type ToastApi = {
-  push: (kind: StatusKind, message: string) => void;
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
+  push: (kind: StatusKind, message: string, link?: ToastLink) => void;
+  success: (message: string, link?: ToastLink) => void;
+  error: (message: string, link?: ToastLink) => void;
+  info: (message: string, link?: ToastLink) => void;
 };
 
 const config: Record<StatusKind, { className: string; Icon: typeof Info }> = {
@@ -54,10 +57,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (kind: StatusKind, message: string) => {
+    (kind: StatusKind, message: string, link?: ToastLink) => {
       const id = (idRef.current += 1);
-      setToasts((prev) => [...prev, { id, kind, message }]);
-      setTimeout(() => dismiss(id), TOAST_TTL);
+      setToasts((prev) => [...prev, { id, kind, message, link }]);
+      // Give toasts with a clickable link longer so there's time to read + click.
+      setTimeout(() => dismiss(id), link ? TOAST_TTL * 2 : TOAST_TTL);
     },
     [dismiss]
   );
@@ -65,9 +69,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const api = useMemo<ToastApi>(
     () => ({
       push,
-      success: (message: string) => push('success', message),
-      error: (message: string) => push('error', message),
-      info: (message: string) => push('info', message),
+      success: (message: string, link?: ToastLink) => push('success', message, link),
+      error: (message: string, link?: ToastLink) => push('error', message, link),
+      info: (message: string, link?: ToastLink) => push('info', message, link),
     }),
     [push]
   );
@@ -91,7 +95,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               )}
             >
               <Icon className="mt-0.5 h-4.5 w-4.5 shrink-0" aria-hidden />
-              <span className="flex-1 leading-6">{toast.message}</span>
+              <div className="flex-1 leading-6">
+                <span>{toast.message}</span>
+                {toast.link && (
+                  <a
+                    href={toast.link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block font-medium underline underline-offset-2 hover:opacity-80"
+                  >
+                    {toast.link.label}
+                  </a>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => dismiss(toast.id)}

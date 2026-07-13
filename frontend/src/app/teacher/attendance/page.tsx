@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ScanFace, UploadCloud } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
+import { useAiGuard } from "@/lib/use-ai-guard";
 import {
   Button,
   ButtonLink,
@@ -33,6 +34,7 @@ function todayLocalISO() {
 
 export default function TeacherAttendancePage() {
   const toast = useToast();
+  const { requireAi } = useAiGuard();
   const [loading, setLoading] = useState(false);
   const [courseId, setCourseId] = useState("");
   const [sessionDate, setSessionDate] = useState(todayLocalISO());
@@ -68,6 +70,7 @@ export default function TeacherAttendancePage() {
       toast.error("Please choose at least one class photo.");
       return;
     }
+    if (!requireAi()) return;
 
     setLoading(true);
 

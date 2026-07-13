@@ -1,93 +1,35 @@
-# Render Blueprint — deploys the backend as THREE managed pieces from this repo:
-#   1. attendance-api      (FastAPI web server, Docker)
-#   2. attendance-worker   (Celery worker, same Docker image)
-#   3. attendance-redis    (managed Key Value / Redis — Celery broker + backend)
-# plus a managed Postgres database (with the pgvector extension).
+# Render Blueprint — FREE lightweight backend for the Attendance System.
 #
-# The Next.js frontend is NOT here — it is deployed separately on Vercel.
+# This deploys the LIGHTWEIGHT build: FastAPI without the face-recognition stack
+# (no TensorFlow/DeepFace/OpenCV/Celery worker), so it fits Render's free tier.
+# The face-recognition endpoints return 503 here — those run only in the full
+# LOCAL deployment. The database is external (Supabase, free) with pgvector.
 #
-# To use: push this file, then in the Render dashboard: New → Blueprint → pick
-# this repo. Fill in the `sync: false` secrets (Cloudinary + CORS) when prompted.
-
-databases:
-  - name: attendance-db
-    databaseName: attendancedb
-    user: attendance
-    plan: basic-256mb          # pgvector is supported on all Render Postgres plans
-    postgresMajorVersion: "16"
+# Use: Render dashboard → New → Blueprint → pick this repo. Fill the `sync:false`
+# values (DATABASE_URL, CORS_ORIGINS, Cloudinary) when prompted.
 
 services:
-  # --- Redis / Key Value (Celery broker + result backend) --------------------
-  - type: redis
-    name: attendance-redis
-    plan: free                 # bump to a paid plan for persistence/more memory
-    ipAllowList: []            # internal-only; no public access
-
-  # --- Shared env vars for both the API and the worker -----------------------
-  # (Connection strings are wired per-service below because they resolve from
-  #  other resources; only static secrets live in the group.)
-
-  # --- FastAPI web server ----------------------------------------------------
   - type: web
     name: attendance-api
-    runtime: docker
-    plan: standard             # TensorFlow/DeepFace need ~2GB RAM; do not use free
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    runtime: python
+    plan: free                 # 512MB — enough for the lightweight build
+    rootDir: backend
+    buildCommand: "pip install -r requirements-lite.txt"
+    # Apply migrations (also enables pgvector on the Supabase DB), then serve.
+    startCommand: "alembic upgrade head && gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT --workers 1 --timeout 120"
     healthCheckPath: /health
-    numInstances: 1            # keep at 1 so the startup migration never races
-    # Run DB migrations, then start the server. $PORT is injected by Render.
-    dockerCommand: >-
-      sh -c "alembic upgrade head &&
-      gunicorn app.main:app -k uvicorn.workers.UvicornWorker
-      -b 0.0.0.0:$PORT --workers 2 --timeout 120"
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: AI_FEATURES_ENABLED
+        value: "false"          # lightweight: face endpoints return 503
       - key: SECRET_KEY
         generateValue: true
-      - key: CORS_ORIGINS         # e.g. https://your-app.vercel.app  (no trailing slash)
+      - key: CORS_ORIGINS       # your Vercel URL, e.g. https://your-app.vercel.app
         sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: attendance-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: attendance-redis
-          property: connectionString
-      - key: CLOUDINARY_CLOUD_NAME
+      - key: DATABASE_URL       # Supabase → Connect → Session pooler, + ?sslmode=require
         sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
-
-  # --- Celery worker (face matching, Cloudinary uploads, notifications) -------
-  - type: worker
-    name: attendance-worker
-    runtime: docker
-    plan: standard             # inference is the heavy part; give it RAM
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    dockerCommand: >-
-      celery -A app.tasks.celery_app:celery_app worker
-      --loglevel=info --concurrency=1
-    envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: SECRET_KEY          # must match the API's value for consistent signing
-        sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: attendance-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: attendance-redis
-          property: connectionString
+      # Cloudinary is optional for the lite demo (image hosting). Leave blank to skip.
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

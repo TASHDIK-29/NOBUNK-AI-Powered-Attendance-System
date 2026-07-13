@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_active_user, get_db
+from app.api.deps import get_current_active_user, get_db, require_ai_features
 from app.core.config import get_settings
 from app.models.models import User
 from app.repositories.student_repository import StudentRepository
@@ -81,6 +81,7 @@ def upload_reference_images(
     profile_type: str = Form("default"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    _ai: None = Depends(require_ai_features),
 ):
     """
     Save a student's reference photos, REPLACING any they had before.
@@ -138,6 +139,7 @@ def face_check(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    _ai: None = Depends(require_ai_features),
 ):
     """
     Tell a student whether their CURRENT look still matches their stored

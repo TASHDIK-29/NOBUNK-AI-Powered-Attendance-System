@@ -5,7 +5,7 @@ from typing import List
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.api.deps import get_current_active_teacher, get_current_active_user
+from app.api.deps import get_current_active_teacher, get_current_active_user, require_ai_features
 from app.models.models import AttendanceSession, Course, Enrollment, SessionImage
 from app.schemas.attendance import (
     ReviewCreateIn,
@@ -41,7 +41,8 @@ async def upload_attendance_images(
     session_date: str = Form(...),
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_teacher)
+    current_user = Depends(get_current_active_teacher),
+    _ai: None = Depends(require_ai_features),
 ):
     """
     Teacher uploads one or multiple classroom images for a chosen date.
@@ -215,6 +216,7 @@ def submit_review(
     payload: ReviewCreateIn,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user),
+    _ai: None = Depends(require_ai_features),
 ):
     """
     Submit a review: the student's marked face region in one session photo. Creates

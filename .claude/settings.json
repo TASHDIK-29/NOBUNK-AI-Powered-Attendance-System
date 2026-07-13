@@ -38,7 +38,14 @@
       "Bash(./venv/Scripts/python.exe -m uvicorn app.main:app --port 8199 --log-level warning)",
       "Bash(curl -s -o /dev/null http://localhost:8199/health)",
       "Bash(curl -s -X POST http://localhost:8199/shutdown)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "WebSearch",
+      "WebFetch(domain:huggingface.co)",
+      "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c 'import cv2')",
+      "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -m pip install --quiet --disable-pip-version-check email-validator==2.2.0)",
+      "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -m pip install --quiet --disable-pip-version-check scipy==1.18.0)",
+      "Bash(AI_FEATURES_ENABLED=false ENVIRONMENT=production SECRET_KEY=t CORS_ORIGINS=https://x DATABASE_URL=postgresql://u:p@h:5432/db C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c ' *)",
+      "Bash(AI_FEATURES_ENABLED=true ENVIRONMENT=production SECRET_KEY=t CORS_ORIGINS=https://x DATABASE_URL=postgresql://u:p@h:5432/db C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c ' *)"
     ]
   }
 }

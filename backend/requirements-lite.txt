@@ -1,0 +1,44 @@
+# Lightweight dependency set for the PUBLIC free deployment (e.g. Render free).
+#
+# It deliberately OMITS the heavy face-recognition stack — tensorflow, tf-keras,
+# keras, deepface, opencv, retina-face, mtcnn, pandas and their transitive
+# dependencies — which together need ~2GB RAM and don't fit a free tier. The app
+# still boots and serves every route; the AI endpoints return 503 (they run only
+# in the full local deployment, installed via requirements.txt).
+#
+# Local development / full AI features: use requirements.txt instead.
+
+# --- Web framework ---------------------------------------------------------
+fastapi==0.136.1
+uvicorn==0.46.0
+gunicorn==26.0.0
+python-multipart==0.0.27
+pydantic==2.13.4
+pydantic-settings==2.14.1
+python-dotenv==1.2.2
+email-validator==2.2.0
+
+# --- Database --------------------------------------------------------------
+SQLAlchemy==2.0.49
+psycopg2-binary==2.9.12
+alembic==1.18.4
+pgvector==0.4.2
+
+# --- Auth / password hashing ----------------------------------------------
+bcrypt==5.0.0
+passlib==1.7.4
+
+# --- Numerics (embedding math + optimal face assignment; imported at load) --
+numpy==2.4.4
+scipy==1.18.0
+
+# --- Celery kept installed (small); runs EAGERLY in lite mode, no worker ----
+celery==5.6.3
+redis==7.4.0
+
+# --- Cloudinary cleanup (runs eagerly) + review image fetch ----------------
+cloudinary==1.44.1
+requests==2.33.1
+
+# --- PDF export for teacher attendance reports -----------------------------
+reportlab==5.0.0

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
+import { useAiGuard } from "@/lib/use-ai-guard";
 import { Button, EmptyState, Modal, Skeleton, useToast } from "@/components/ui";
 import { ReviewMarker, type MarkerValue } from "@/components/review-marker";
 import type { SessionImage } from "@/components/session-photos";
@@ -46,6 +47,7 @@ export function StudentReviewModal({
   onResolved: () => void;
 }) {
   const toast = useToast();
+  const { requireAi } = useAiGuard();
   const [phase, setPhase] = useState<Phase>("loading");
   const [images, setImages] = useState<SessionImage[]>([]);
   const [hostingEnabled, setHostingEnabled] = useState(true);
@@ -88,6 +90,7 @@ export function StudentReviewModal({
 
   const submit = async () => {
     if (!selectedId || !value) return;
+    if (!requireAi()) return;
     setSubmitting(true);
     try {
       const res = await axios.post(`/api/v1/attendance/session/${sessionId}/review`, {

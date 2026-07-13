@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     # auth cookies are marked Secure and whether strict security headers apply.
     ENVIRONMENT: str = "development"
 
+    # Face-recognition features (DeepFace/OpenCV/Celery). The public free
+    # deployment runs a LIGHTWEIGHT build with these libraries omitted (they far
+    # exceed its memory budget), so the endpoints that need them return 503 there
+    # and Celery tasks run eagerly in-process. Run locally with this left True to
+    # use the full AI pipeline.
+    AI_FEATURES_ENABLED: bool = True
+
     # Security — kept for signing/misc use; auth no longer uses JWTs.
     SECRET_KEY: str = "REPLACE_THIS_WITH_A_SUPER_SECRET_KEY_IN_PRODUCTION"
 

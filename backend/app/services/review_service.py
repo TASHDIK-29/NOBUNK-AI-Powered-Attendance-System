@@ -21,12 +21,15 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-import cv2
 import numpy as np
 import requests
 
 from app.core.config import get_settings
 from app.services.face_service import face_service
+
+# OpenCV (cv2) is imported lazily inside _fetch_image so this module stays
+# importable in the lightweight deployment (which omits it). The review endpoint
+# that reaches this code is gated by AI_FEATURES_ENABLED.
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -48,6 +51,8 @@ class ReviewOutcome:
 
 def _fetch_image(url: str) -> Optional[np.ndarray]:
     """Download an image by URL and decode it to a BGR frame. None on failure."""
+    import cv2
+
     try:
         resp = requests.get(url, timeout=_DOWNLOAD_TIMEOUT, stream=True)
         resp.raise_for_status()

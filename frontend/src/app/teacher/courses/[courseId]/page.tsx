@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
+import { useAiGuard } from "@/lib/use-ai-guard";
 import {
   Avatar,
   Badge,
@@ -98,6 +99,7 @@ export default function TeacherCourseDetailPage() {
   const params = useParams<{ courseId: string }>();
   const courseId = Number(params.courseId);
   const toast = useToast();
+  const { requireAi } = useAiGuard();
   const confirm = useConfirm();
 
   const [overview, setOverview] = useState<CourseOverview | null>(null);
@@ -189,6 +191,7 @@ export default function TeacherCourseDetailPage() {
       toast.error("Choose at least one classroom image.");
       return;
     }
+    if (!requireAi()) return;
 
     setUploading(true);
 

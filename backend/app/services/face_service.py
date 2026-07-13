@@ -1,9 +1,11 @@
-import cv2
-import numpy as np
-from deepface import DeepFace
 import logging
 
 from app.core.config import get_settings
+
+# NOTE: OpenCV (cv2) and DeepFace are imported lazily inside the methods that use
+# them, NOT at module load. This keeps the module importable in the lightweight
+# deployment (which omits those heavy libraries) so the app can still boot and
+# serve every non-AI route; the AI endpoints themselves are gated separately.
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -32,6 +34,8 @@ class FaceRecognitionService:
         Returns a BGR numpy frame. Falls back to the original input (so DeepFace
         can read it directly) if the image can't be decoded here.
         """
+        import cv2
+
         frame = cv2.imread(img) if isinstance(img, str) else img
         if frame is None:
             # Unreadable/unsupported by OpenCV — let DeepFace try the raw input.
@@ -63,6 +67,8 @@ class FaceRecognitionService:
         returns a single whole-image "face" with confidence 0, which we filter
         out below by confidence.
         """
+        from deepface import DeepFace
+
         return DeepFace.represent(
             img_path=img,
             model_name=self.model_name,
