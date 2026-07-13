@@ -6,8 +6,10 @@ Two cookies are used:
 * the CSRF cookie — intentionally readable by JS, so the SPA can echo the token
   back in the ``X-CSRF-Token`` header on state-changing requests.
 
-Both are ``SameSite=Lax`` and ``Path=/``. ``Secure`` is enabled only in
-production (localhost dev runs over plain HTTP).
+Both are ``Path=/``. ``Secure`` and ``SameSite`` are environment-driven: in
+production they become ``Secure; SameSite=None`` so the cookies survive a
+cross-site SPA→API setup (e.g. Vercel frontend + Render backend); in dev they
+are ``SameSite=Lax`` over plain HTTP on localhost. See ``Settings.cookie_samesite``.
 """
 
 from fastapi import Response
@@ -22,6 +24,7 @@ _MAX_AGE_SECONDS = settings.SESSION_ABSOLUTE_TIMEOUT_DAYS * 24 * 60 * 60
 
 def set_auth_cookies(response: Response, raw_token: str, csrf_token: str) -> None:
     secure = settings.is_production
+    samesite = settings.cookie_samesite
 
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
@@ -29,7 +32,7 @@ def set_auth_cookies(response: Response, raw_token: str, csrf_token: str) -> Non
         max_age=_MAX_AGE_SECONDS,
         httponly=True,          # never exposed to JavaScript
         secure=secure,          # HTTPS-only in production
-        samesite="lax",
+        samesite=samesite,      # "none" in prod (cross-site), "lax" in dev
         path="/",
     )
     response.set_cookie(
@@ -38,12 +41,19 @@ def set_auth_cookies(response: Response, raw_token: str, csrf_token: str) -> Non
         max_age=_MAX_AGE_SECONDS,
         httponly=False,         # read by the SPA to populate the CSRF header
         secure=secure,
-        samesite="lax",
+        samesite=samesite,
         path="/",
     )
 
 
 def clear_auth_cookies(response: Response) -> None:
-    # Delete with matching path so the browser actually drops the cookies.
-    response.delete_cookie(settings.SESSION_COOKIE_NAME, path="/")
-    response.delete_cookie(settings.CSRF_COOKIE_NAME, path="/")
+    # Delete with matching path/secure/samesite so the browser actually drops the
+    # cookies (a mismatch on these attributes can leave the cookie in place).
+    secure = settings.is_production
+    samesite = settings.cookie_samesite
+    response.delete_cookie(
+        settings.SESSION_COOKIE_NAME, path="/", secure=secure, samesite=samesite
+    )
+    response.delete_cookie(
+        settings.CSRF_COOKIE_NAME, path="/", secure=secure, samesite=samesite
+    )

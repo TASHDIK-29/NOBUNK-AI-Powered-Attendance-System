@@ -8,6 +8,7 @@
 !*.env.example
 backend/.env
 frontend/.env*
+!frontend/.env.example
 *.pem
 *.key
 secrets.*

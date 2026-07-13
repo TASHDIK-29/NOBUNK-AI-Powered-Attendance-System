@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.ENVIRONMENT.strip().lower() == "production"
 
+    @property
+    def cookie_samesite(self) -> str:
+        # When the SPA (e.g. *.vercel.app) and the API (e.g. *.onrender.com) live
+        # on different sites, the browser only attaches the session cookie to
+        # cross-site XHR/fetch if it is SameSite=None. SameSite=None *requires*
+        # Secure, which is already enabled in production. Dev stays SameSite=Lax
+        # so it works over plain HTTP on localhost.
+        return "none" if self.is_production else "lax"
+
 
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost:5435/attendancedb"

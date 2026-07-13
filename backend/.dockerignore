@@ -1,0 +1,14 @@
+# Keep the build context small and never ship local-only artifacts.
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+!.env.example
+uploads/
+.deepface/
+*.log
+.pytest_cache/
+.mypy_cache/

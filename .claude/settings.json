@@ -37,7 +37,8 @@
       "Bash(./venv/Scripts/python.exe -m alembic upgrade head)",
       "Bash(./venv/Scripts/python.exe -m uvicorn app.main:app --port 8199 --log-level warning)",
       "Bash(curl -s -o /dev/null http://localhost:8199/health)",
-      "Bash(curl -s -X POST http://localhost:8199/shutdown)"
+      "Bash(curl -s -X POST http://localhost:8199/shutdown)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
