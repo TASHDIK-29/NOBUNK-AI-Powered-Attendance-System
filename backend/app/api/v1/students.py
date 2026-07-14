@@ -16,7 +16,12 @@ router = APIRouter()
 settings = get_settings()
 
 UPLOAD_DIR = "uploads/reference_images"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError:
+    # Read-only filesystem (e.g. Vercel serverless). The endpoints that write
+    # here are AI-only and disabled in that deployment, so this is safe to skip.
+    pass
 
 # Human-readable reasons why a single photo couldn't be used.
 _REASON_MESSAGES = {

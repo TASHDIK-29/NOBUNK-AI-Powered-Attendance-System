@@ -77,8 +77,8 @@ python -m venv venv
 source venv/Scripts/activate        # Windows (Git Bash)
 # source venv/bin/activate          # macOS / Linux
 
-# Install dependencies (this pulls TensorFlow/DeepFace — a few minutes)
-pip install -r requirements.txt
+# Install dependencies (full set — pulls TensorFlow/DeepFace, a few minutes)
+pip install -r requirements-full.txt
 
 # Configure environment
 cp .env.example .env                 # then edit values if needed
@@ -161,8 +161,10 @@ locally, all face-recognition features are enabled.
 │  ├─ app/tasks/       Celery worker + background jobs
 │  ├─ app/models/      SQLAlchemy models (incl. pgvector embedding column)
 │  ├─ alembic/         Database migrations
-│  ├─ requirements.txt        Full deps (local / full AI)
-│  └─ requirements-lite.txt   Lightweight deps (public deploy, no AI stack)
+│  ├─ requirements.txt        Lightweight deps (default — public deploy, no AI stack)
+│  ├─ requirements-full.txt   Full deps (local / full AI)
+│  ├─ api/index.py            Vercel serverless entrypoint
+│  └─ vercel.json             Vercel routing (all requests → FastAPI app)
 ├─ frontend/           Next.js app (App Router)
 │  └─ src/app, src/components, src/lib, src/store
 ├─ docker-compose.yml  Local Postgres (pgvector) + Redis
@@ -176,12 +178,14 @@ locally, all face-recognition features are enabled.
 The public deployment is intentionally split and lightweight:
 
 - **Frontend → Vercel** (free).
-- **Backend → Render** (free) using [`render.yaml`](render.yaml) and
-  `requirements-lite.txt` — the heavy face-recognition stack is omitted so it
-  fits a free tier, and the AI endpoints return `503` there. Set
-  `NEXT_PUBLIC_AI_ENABLED=false` on Vercel so the UI shows the "runs locally"
-  notice instead.
-- **Database → Supabase** (free Postgres with pgvector).
+- **Backend → Vercel** (free, serverless) via `backend/api/index.py` +
+  `backend/vercel.json`, installing the default lightweight `requirements.txt` —
+  the heavy face-recognition stack is omitted so it fits, and the AI endpoints
+  return `503` there. Set `NEXT_PUBLIC_AI_ENABLED=false` on the frontend so the
+  UI shows the "runs locally" notice instead. (`render.yaml` + `Dockerfile` are
+  kept as alternative host options.)
+- **Database → Supabase** (free Postgres with pgvector). Run
+  `alembic upgrade head` once against it (serverless can't run migrations on boot).
 
 To showcase the AI features, run the full stack locally (steps above) and record
 a short demo.

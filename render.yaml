@@ -14,7 +14,7 @@ services:
     runtime: python
     plan: free                 # 512MB — enough for the lightweight build
     rootDir: backend
-    buildCommand: "pip install -r requirements-lite.txt"
+    buildCommand: "pip install -r requirements.txt"
     # Apply migrations (also enables pgvector on the Supabase DB), then serve.
     startCommand: "alembic upgrade head && gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT --workers 1 --timeout 120"
     healthCheckPath: /health

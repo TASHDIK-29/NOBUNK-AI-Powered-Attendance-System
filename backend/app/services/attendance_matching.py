@@ -21,9 +21,13 @@ import logging
 from typing import Dict, List, Optional
 
 import numpy as np
-from scipy.optimize import linear_sum_assignment
 
 logger = logging.getLogger(__name__)
+
+# NOTE: scipy is imported lazily inside the assignment function below. It's only
+# needed for classroom face-matching (an AI-only path that never runs in the
+# lightweight deployment), so keeping it out of module load lets the lite build
+# omit scipy entirely and still import this module.
 
 # Cost used for (face, student) pairs where the student has no embedding, so the
 # assignment solver never prefers a non-existent match. Well above any real
@@ -96,6 +100,8 @@ def assign_faces_to_students(
                 cost[i][j] = row[sid]
 
     # Globally optimal one-to-one assignment (handles rectangular matrices).
+    from scipy.optimize import linear_sum_assignment
+
     face_idx, student_idx = linear_sum_assignment(cost)
 
     accepted: Dict[int, float] = {}

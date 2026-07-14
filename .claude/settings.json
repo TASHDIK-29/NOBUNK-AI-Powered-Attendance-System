@@ -45,7 +45,13 @@
       "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -m pip install --quiet --disable-pip-version-check email-validator==2.2.0)",
       "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -m pip install --quiet --disable-pip-version-check scipy==1.18.0)",
       "Bash(AI_FEATURES_ENABLED=false ENVIRONMENT=production SECRET_KEY=t CORS_ORIGINS=https://x DATABASE_URL=postgresql://u:p@h:5432/db C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c ' *)",
-      "Bash(AI_FEATURES_ENABLED=true ENVIRONMENT=production SECRET_KEY=t CORS_ORIGINS=https://x DATABASE_URL=postgresql://u:p@h:5432/db C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c ' *)"
+      "Bash(AI_FEATURES_ENABLED=true ENVIRONMENT=production SECRET_KEY=t CORS_ORIGINS=https://x DATABASE_URL=postgresql://u:p@h:5432/db C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c ' *)",
+      "Bash(python -c \"import secrets; print\\(secrets.token_urlsafe\\(48\\)\\)\")",
+      "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -m pip uninstall -y scipy)",
+      "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c 'import scipy')",
+      "WebFetch(domain:zeabur.com)",
+      "WebFetch(domain:docs.leapcell.io)",
+      "Bash(python -m py_compile app/api/v1/students.py app/api/v1/attendance.py api/index.py)"
     ]
   }
 }

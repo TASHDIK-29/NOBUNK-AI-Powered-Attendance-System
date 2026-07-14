@@ -24,7 +24,12 @@ from app.tasks.review_tasks import process_student_review
 router = APIRouter()
 
 UPLOAD_DIR = "uploads/attendance_images"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError:
+    # Read-only filesystem (e.g. Vercel serverless). The endpoints that write
+    # here are AI-only and disabled in that deployment, so this is safe to skip.
+    pass
 
 class AttendanceSessionResponse(BaseModel):
     id: int
