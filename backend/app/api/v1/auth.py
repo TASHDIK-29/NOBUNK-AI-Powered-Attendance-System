@@ -111,3 +111,21 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def read_current_user(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+
+@router.get("/csrf")
+def get_csrf_token(request: Request, db: Session = Depends(get_db)):
+    """Return the current session's CSRF token in the response body.
+
+    The SPA normally reads the CSRF token from its cookie, but when the frontend
+    and API are on different domains (e.g. separate Vercel deployments) the
+    browser won't expose the API's cookie to the frontend's JavaScript. This
+    endpoint lets the SPA fetch the token over an authenticated request instead,
+    then echo it back in the ``X-CSRF-Token`` header. It's a GET (CSRF-exempt)
+    and requires a valid session, so it never leaks another user's token.
+    """
+    raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    db_session = sessions.get_valid_session(db, raw_token)
+    if db_session is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return {"csrf_token": db_session.csrf_token}

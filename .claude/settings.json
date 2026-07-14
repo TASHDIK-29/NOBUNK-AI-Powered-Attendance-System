@@ -51,7 +51,8 @@
       "Bash(C:/Users/Lenovo/AppData/Local/Temp/claude/d--Projects-Attendance-System/f8a2f4da-a447-43f6-9f64-f9be62c8d765/scratchpad/litevenv/Scripts/python.exe -c 'import scipy')",
       "WebFetch(domain:zeabur.com)",
       "WebFetch(domain:docs.leapcell.io)",
-      "Bash(python -m py_compile app/api/v1/students.py app/api/v1/attendance.py api/index.py)"
+      "Bash(python -m py_compile app/api/v1/students.py app/api/v1/attendance.py api/index.py)",
+      "Bash(python -m py_compile app/api/v1/auth.py)"
     ]
   }
 }

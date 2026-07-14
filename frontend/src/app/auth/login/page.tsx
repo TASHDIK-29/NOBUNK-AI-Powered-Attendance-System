@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
-import axios from "@/lib/axios";
+import axios, { refreshCsrfToken } from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import { Button, Field, Input, useToast } from "@/components/ui";
 import { AuthLayout } from "@/components/auth-layout";
@@ -34,6 +34,9 @@ export default function LoginPage() {
       });
 
       dispatch(setUser(response.data));
+      // Cross-domain deploys can't read the CSRF cookie from JS, so fetch the
+      // token now and keep it in memory for the state-changing requests ahead.
+      await refreshCsrfToken();
       router.replace("/dashboard");
     } catch (error) {
       toast.error(getErrorMessage(error));

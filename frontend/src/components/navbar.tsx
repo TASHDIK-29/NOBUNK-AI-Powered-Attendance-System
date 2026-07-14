@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { clearUser } from '@/store/slices/authSlice';
-import axios from '@/lib/axios';
+import axios, { setCsrfToken } from '@/lib/axios';
 import { Avatar, Button, ButtonLink } from '@/components/ui';
 import { ThemeToggle } from '@/components/theme-toggle';
 import NotificationBell from '@/components/notification-bell';
@@ -63,6 +63,7 @@ export default function Navbar() {
       // ignore — clear the client either way
     }
     dispatch(clearUser());
+    setCsrfToken(null);
     setMobileOpen(false);
     router.replace('/');
   };
