@@ -15,8 +15,13 @@ settings = get_settings()
 # access to the values within the .ini file in use.
 config = context.config
 
-# Overwrite the sqlalchemy.url dynamically
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Overwrite the sqlalchemy.url dynamically.
+# `%` is escaped to `%%` because Alembic stores this value in a configparser
+# section, where `%` is interpolation syntax. configparser restores the single
+# `%` when the URL is read back, so a URL-encoded password (e.g. `%23` for `#`)
+# reaches SQLAlchemy intact. Without this, such URLs raise
+# "invalid interpolation syntax".
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

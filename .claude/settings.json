@@ -52,7 +52,8 @@
       "WebFetch(domain:zeabur.com)",
       "WebFetch(domain:docs.leapcell.io)",
       "Bash(python -m py_compile app/api/v1/students.py app/api/v1/attendance.py api/index.py)",
-      "Bash(python -m py_compile app/api/v1/auth.py)"
+      "Bash(python -m py_compile app/api/v1/auth.py)",
+      "Bash(./scripts/migrate-local.sh current *)"
     ]
   }
 }
