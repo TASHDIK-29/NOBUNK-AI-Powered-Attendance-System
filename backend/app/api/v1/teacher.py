@@ -120,10 +120,24 @@ def decide_join_request(request_id: int, accept: bool, db: Session = Depends(get
     return {"status": jr.status}
 
 
-@router.get("/students/search", response_model=List[StudentSearchOut])
-def search_students(name: str | None = None, session_year: str | None = None, db: Session = Depends(get_db), current_user = Depends(get_current_active_teacher)):
+@router.post("/join-requests/accept-all")
+def accept_all_join_requests(db: Session = Depends(get_db), current_user = Depends(get_current_active_teacher)):
+    """Accept every pending join request across the teacher's own courses."""
     repo = CourseRepository(db)
-    return repo.search_students(name=name, session_year=session_year)
+    accepted = repo.accept_all_join_requests(teacher_id=current_user.id)
+    return {"message": f"Accepted {accepted} join request(s).", "accepted": accepted}
+
+
+@router.get("/students/search", response_model=List[StudentSearchOut])
+def search_students(
+    name: str | None = None,
+    session_year: str | None = None,
+    student_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_teacher),
+):
+    repo = CourseRepository(db)
+    return repo.search_students(name=name, session_year=session_year, student_id=student_id)
 
 
 @router.post("/courses/{course_id}/students/{student_id}", response_model=AddStudentToCourseOut)

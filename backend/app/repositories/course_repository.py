@@ -117,6 +117,22 @@ class CourseRepository:
         )
         return [row._asdict() for row in self.db.execute(stmt).all()]
 
+    def accept_all_join_requests(self, teacher_id: int) -> int:
+        """
+        Accept every pending join request across a teacher's courses in one
+        shot, enrolling each student and notifying them. Returns the count
+        accepted.
+        """
+        pending = (
+            self.db.query(JoinRequest)
+            .join(Course, Course.id == JoinRequest.course_id)
+            .filter(Course.teacher_id == teacher_id, JoinRequest.status == "pending")
+            .all()
+        )
+        for jr in pending:
+            self.decide_join_request(request_id=jr.id, accept=True, decided_by=teacher_id)
+        return len(pending)
+
     def decide_join_request(self, request_id: int, accept: bool, decided_by: int):
         jr = self.db.query(JoinRequest).filter(JoinRequest.id == request_id).first()
         if not jr:
@@ -435,13 +451,30 @@ class CourseRepository:
             "students": student_rows,
         }
 
-    def search_students(self, name: Optional[str] = None, session_year: Optional[str] = None) -> List[User]:
+    def search_students(
+        self,
+        name: Optional[str] = None,
+        session_year: Optional[str] = None,
+        student_id: Optional[str] = None,
+    ) -> List[User]:
         stmt = select(User).where(User.role == "student")
         if name:
             stmt = stmt.where(User.full_name.ilike(f"%{name}%"))
         if session_year:
             stmt = stmt.where(User.session_year == session_year)
+        if student_id:
+            # Exact match (case-insensitive) — student IDs are unique identifiers,
+            # so "1" must match only that ID, not every ID containing "1".
+            stmt = stmt.where(User.student_id.ilike(student_id))
         return self.db.execute(stmt).scalars().all()
+
+    def list_pending_join_request_course_ids(self, student_id: int) -> List[int]:
+        """Course ids a student has a pending (undecided) join request for."""
+        stmt = select(JoinRequest.course_id).where(
+            JoinRequest.student_id == student_id,
+            JoinRequest.status == "pending",
+        )
+        return list(self.db.execute(stmt).scalars().all())
 
     def _hosted_public_ids(self, course_id: int) -> List[str]:
         """public_ids of every Cloudinary asset belonging to a course's sessions."""

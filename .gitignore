@@ -110,5 +110,8 @@ ehthumbs.db
 # ============================================================
 #  Claude Code — ignore personal/local config, keep shared
 # ============================================================
-.claude/settings.local.json
+.claude
+CLAUDE.md
+docs
+render.yaml
 PROJECT_CONTEXT.txt

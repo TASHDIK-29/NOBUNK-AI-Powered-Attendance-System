@@ -103,32 +103,31 @@ export default function TeacherCoursesPage() {
         </ButtonLink>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="space-y-6">
         <Panel
           title="Create course"
           description="Add a new course to your list"
           icon={<FolderPlus className="h-5 w-5" />}
-          className="lg:col-span-2"
         >
-          <form className="space-y-4" onSubmit={createCourse}>
+          <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={createCourse}>
             <Field label="Title">
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Data Structures" required />
             </Field>
             <Field label="Code">
               <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="CS201" required />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Session">
-                <Input value={session} onChange={(e) => setSession(e.target.value)} placeholder="2025-2029" />
-              </Field>
-              <Field label="Department">
-                <Input value={dept} onChange={(e) => setDept(e.target.value)} placeholder="Computer Science" />
-              </Field>
+            <Field label="Session">
+              <Input value={session} onChange={(e) => setSession(e.target.value)} placeholder="2025-2029" />
+            </Field>
+            <Field label="Department">
+              <Input value={dept} onChange={(e) => setDept(e.target.value)} placeholder="Computer Science" />
+            </Field>
+            <div className="sm:col-span-2 lg:col-span-4">
+              <Button type="submit" loading={creating} className="w-full sm:w-auto">
+                {!creating && <Plus className="h-4 w-4" />}
+                Create course
+              </Button>
             </div>
-            <Button type="submit" block loading={creating}>
-              {!creating && <Plus className="h-4 w-4" />}
-              Create course
-            </Button>
           </form>
         </Panel>
 
@@ -136,29 +135,34 @@ export default function TeacherCoursesPage() {
           title="Your courses"
           description="Courses you created"
           icon={<GraduationCap className="h-5 w-5" />}
-          className="lg:col-span-3"
         >
-          <div className="space-y-3">
-            {courses.length === 0 ? (
-              <EmptyState
-                icon={<GraduationCap className="h-5 w-5" />}
-                title="No courses yet"
-                description="Create your first course using the form on the left."
-              />
-            ) : (
-              courses.map((c) => (
+          {courses.length === 0 ? (
+            <EmptyState
+              icon={<GraduationCap className="h-5 w-5" />}
+              title="No courses yet"
+              description="Create your first course using the form above."
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {courses.map((c) => (
                 <div
                   key={c.id}
-                  className="flex flex-col gap-3 rounded-xl border border-border bg-surface-muted/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 shadow-soft transition hover:border-ring/50 hover:shadow-elevated"
                 >
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold">
-                      {c.title} <span className="text-muted-foreground">· {c.code}</span>
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <GraduationCap className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold leading-tight">{c.title}</div>
+                      <div className="truncate text-xs text-muted-foreground">{c.code}</div>
                     </div>
-                    <div className="text-xs text-muted-foreground">Session: {c.session_target || "—"}</div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <ButtonLink href={`/teacher/courses/${c.id}`} size="sm">
+                  <div className="text-xs text-muted-foreground">
+                    Session: {c.session_target || "—"}
+                  </div>
+                  <div className="mt-auto flex items-center gap-2 border-t border-border pt-4">
+                    <ButtonLink href={`/teacher/courses/${c.id}`} size="sm" className="flex-1">
                       Open
                     </ButtonLink>
                     <Button
@@ -174,9 +178,9 @@ export default function TeacherCoursesPage() {
                     </Button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </Panel>
       </div>
     </PageShell>

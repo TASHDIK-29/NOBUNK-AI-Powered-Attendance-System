@@ -33,6 +33,13 @@ def my_enrolled_courses(db: Session = Depends(get_db), current_user=Depends(get_
     return courses
 
 
+@router.get("/my-join-requests", response_model=List[int])
+def my_pending_join_requests(db: Session = Depends(get_db), current_user=Depends(get_current_active_user)):
+    """Course ids the current student has an undecided join request for."""
+    repo = CourseRepository(db)
+    return repo.list_pending_join_request_course_ids(student_id=current_user.id)
+
+
 @router.get("/{course_id}/my-attendance", response_model=StudentCourseAttendanceOut)
 def my_course_attendance(course_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_active_user)):
     """A student's own per-session attendance record for a course they joined."""

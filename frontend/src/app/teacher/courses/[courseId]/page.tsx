@@ -120,6 +120,7 @@ export default function TeacherCourseDetailPage() {
   const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [studentName, setStudentName] = useState("");
   const [studentSession, setStudentSession] = useState("");
+  const [studentIdQuery, setStudentIdQuery] = useState("");
   const [studentResults, setStudentResults] = useState<StudentSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [addingStudentId, setAddingStudentId] = useState<number | null>(null);
@@ -224,6 +225,7 @@ export default function TeacherCourseDetailPage() {
       const query = new URLSearchParams();
       if (studentName.trim()) query.set("name", studentName.trim());
       if (studentSession.trim()) query.set("session_year", studentSession.trim());
+      if (studentIdQuery.trim()) query.set("student_id", studentIdQuery.trim());
       const res = await axios.get(`/api/v1/teacher/students/search?${query.toString()}`);
       setStudentResults(res.data || []);
     } catch (error) {
@@ -395,7 +397,7 @@ export default function TeacherCourseDetailPage() {
             title="Download the latest attendance as a PDF"
           >
             {!downloadingPdf && <FileDown className="h-4 w-4" />}
-            Download PDF
+            Attendance Sheet
           </Button>
           <ButtonLink href="/teacher/join-requests" variant="secondary">
             Join requests
@@ -575,6 +577,13 @@ export default function TeacherCourseDetailPage() {
               placeholder="Search by name"
             />
           </Field>
+          <Field label="Student ID">
+            <Input
+              value={studentIdQuery}
+              onChange={(e) => setStudentIdQuery(e.target.value)}
+              placeholder="Search by student ID"
+            />
+          </Field>
           <Field label="Session year">
             <Input
               value={studentSession}
@@ -614,7 +623,7 @@ export default function TeacherCourseDetailPage() {
                       <div className="truncate font-semibold">{student.full_name}</div>
                       <div className="truncate text-xs text-muted-foreground">{student.email}</div>
                       <div className="text-xs text-muted-foreground">
-                        Session: {student.session_year || "—"}
+                        ID {student.student_id || "—"} · Session: {student.session_year || "—"}
                       </div>
                     </div>
                   </div>

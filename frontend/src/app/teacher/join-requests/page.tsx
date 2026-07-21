@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Inbox, X } from "lucide-react";
+import { Check, CheckCheck, Inbox, X } from "lucide-react";
 import axios from "@/lib/axios";
 import { getErrorMessage } from "@/lib/get-error-message";
 import {
@@ -11,6 +11,7 @@ import {
   EmptyState,
   Panel,
   PageShell,
+  useConfirm,
   useToast,
 } from "@/components/ui";
 
@@ -27,8 +28,10 @@ type JoinRequestItem = {
 
 export default function TeacherJoinRequestsPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [requests, setRequests] = useState<JoinRequestItem[]>([]);
   const [decidingId, setDecidingId] = useState<number | null>(null);
+  const [acceptingAll, setAcceptingAll] = useState(false);
 
   const load = async () => {
     try {
@@ -56,6 +59,27 @@ export default function TeacherJoinRequestsPage() {
     }
   };
 
+  const acceptAll = async () => {
+    const ok = await confirm({
+      title: "Accept all requests",
+      message: `Accept all ${requests.length} pending join request(s)? Every listed student will be enrolled immediately.`,
+      confirmLabel: "Accept all",
+    });
+    if (!ok) {
+      return;
+    }
+    setAcceptingAll(true);
+    try {
+      const res = await axios.post("/api/v1/teacher/join-requests/accept-all");
+      toast.success(res.data?.message ?? "All requests accepted.");
+      await load();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setAcceptingAll(false);
+    }
+  };
+
   return (
     <PageShell
       eyebrow="Teacher"
@@ -71,6 +95,14 @@ export default function TeacherJoinRequestsPage() {
         title="Pending requests"
         description={requests.length ? `${requests.length} awaiting your decision` : undefined}
         icon={<Inbox className="h-5 w-5" />}
+        action={
+          requests.length > 1 ? (
+            <Button size="sm" loading={acceptingAll} onClick={acceptAll}>
+              {!acceptingAll && <CheckCheck className="h-4 w-4" />}
+              Accept all
+            </Button>
+          ) : null
+        }
       >
         <div className="space-y-3">
           {requests.length === 0 ? (
