@@ -34,7 +34,7 @@ export function AuthLayout({
           <Link href="/" className="relative flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white/15">
               <Image
-                src="/logo.jpg"
+                src="/logo.png"
                 alt="NoBunk logo"
                 width={36}
                 height={36}
